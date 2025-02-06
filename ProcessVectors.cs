@@ -11,6 +11,8 @@ using System.Text.Json.Serialization;
 using System.Text.Json;
 using System.Reflection;
 using Microsoft.SemanticKernel.Process;
+using Microsoft.Extensions.AI;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 namespace ProcessVectors;
 
@@ -18,18 +20,18 @@ namespace ProcessVectors;
 #pragma warning disable SKEXP0001 // AsChatCompletionService
 #pragma warning disable SKEXP0050 // Microsoft.SemanticKernel.Plugins.Web.WebSearchEnginePlugin
 #pragma warning disable SKEXP0080 // Microsoft.SemanticKernel.Process.LocalRuntime
+#pragma warning disable SKEXP0010 // response type
 
-
-public sealed class BasicFxVectors
+public sealed class ProcessVectors
 {
-    // mock key
+    // mock key, real goes to secrets
     string GOOGLE_API_KEY = "AIzaSyAk3oN-1Enge_LXitnHL4XFZDWSNMrCKwM8";
     public Uri ModelEndpoint { get; set; }
     public string ModelName { get; set; }
 
     //private IChatCompletionService? chatCompletionService { get; set; }
 
-    public BasicFxVectors(Uri modelEndpoint, string modelName)
+    public ProcessVectors(Uri modelEndpoint, string modelName)
     {
         this.ModelEndpoint = modelEndpoint;
         this.ModelName = modelName;
@@ -51,8 +53,43 @@ public sealed class BasicFxVectors
 
         Kernel kernel = kernelBuilder.Build();
 
+        // Initialize ChatResponseFormat object with JSON schema of desired response format.
+        // ForJsonSchema = CreateJsonSchemaFormat
+        //ChatResponseFormat chatResponseFormat = ChatResponseFormat.ForJsonSchema(
+        //schemaName: "customer_result",
+        //schemaDescription: "Store Customer data",
+        //schema: JsonDocument.Parse("""
+        //{
+        //    "type": "object",
+        //    "properties": {
+        //        "Customer": {
+        //                "type": "object",
+        //                "properties": {
+        //                    "FirstName": { "type": "string" },
+        //                    "lastName": { "type": "string" },
+        //                    "DOBDetails": { "type": "string" },
+        //                    "StateOfResidence": { "type": "string" },
+        //                    "PhoneNumber": { "type": "string" },
+        //                    "UserId": { "type": "string" },
+        //                    "PhoneNumber": { "type": "string" },
+        //                    "EmailAddress": { "type": "string" }
+        //                }
+        //        }
+        //    },
+        //    "required": ["Customer"],
+        //    "additionalProperties": false
+        //}
+        //""").RootElement);
+
+
+        //var letsee = chatResponseFormat...Schema.ToString();
+        //"required": ["Title", "Director", "ReleaseYear", "Rating", "IsAvailableOnStreaming", "Tags"],
+        //"additionalProperties": false
+        //"Tags": { "type": "array", "items": { "type": "string" } }
+
+
         /*
-        // add Google..chuck key to secrets..
+        // add Google..
         Microsoft.SemanticKernel.Plugins.Web.WebSearchEnginePlugin webSearchEnginePlugin = new(
         new GoogleConnector(new BaseClientService.Initializer()
         {
@@ -63,10 +100,9 @@ public sealed class BasicFxVectors
         kernel.ImportPluginFromObject(webSearchEnginePlugin);
         */
         //Microsoft.SemanticKernel.KernelProcess process = new("ChatBot");
-        
-        ProcessBuilder process = new("ChatBot");
 
-        
+        ProcessBuilder process = new("ChatBot");
+                
         var emailStep = process.AddStepFromType<IntroStep>();
         var newCustomerFormStep = process.AddStepFromType<CompleteNewCustomerFormStep>();
         //var userInputStep = process.AddStepFromType<TUserInputStep>();
@@ -77,6 +113,8 @@ public sealed class BasicFxVectors
 
         var accountVerificationStep = process.AddStepFromProcess(NewAccountVerificationProcess.CreateProcess());
 
+
+
         // Define the process flow
         process
             .OnInputEvent(ProcessEvents.StartProcess)
@@ -86,7 +124,7 @@ public sealed class BasicFxVectors
         newCustomerFormStep
            .OnEvent(AccountOpeningEvents.NewCustomerFormWelcomeMessageComplete)
            .SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
-        //.SendEventTo(new ProcessFunctionTargetBuilder(emailStep));
+            //.SendEventTo(new ProcessFunctionTargetBuilder(emailStep));
 
         // When the userInput step emits a user input event, send it to the newCustomerForm step
         // Function names are necessary when the step has multiple public functions like CompleteNewCustomerFormStep: NewAccountWelcome and NewAccountProcessUserInfo
@@ -109,7 +147,25 @@ public sealed class BasicFxVectors
             .OnEvent("AssistantResponseGenerated")
             .SendEventTo(new ProcessFunctionTargetBuilder(userInputStep, ScriptedUserInputStep.Functions.GetUserInput));
 
-//TODO: Continue from here!
+        //TODO: Continue from here!
+
+        // When the newCustomerForm is completed...
+        newCustomerFormStep
+            .OnEvent(AccountOpeningEvents.NewCustomerFormCompleted)
+            // The information gets passed to the core system record creation step
+            .SendEventTo(new ProcessFunctionTargetBuilder(customerCreditCheckStep, functionName: CreditScoreCheckStep.Functions.DetermineCreditScore, parameterName: "customerDetails"))
+            // The information gets passed to the fraud detection step for validation
+            //.SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "customerDetails"))
+            // The information gets passed to the core system record creation step
+            //.SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "customerDetails"));
+
+
+        //FunctionResult? getData = await kernel.InvokePromptAsync(
+        //    "Show user first name"
+        //);
+
+        // After any assistant message is displayed, user input is expected to the next step is the userInputStep
+
 
         // When the newCustomerForm is completed...
         newCustomerFormStep
@@ -207,7 +263,9 @@ public static class ProcessEvents
 {
     public const string StartProcess = nameof(StartProcess);
 }
-
+/// <summary>
+/// First step elicits user input.
+/// </summary>
 public sealed class IntroStep : KernelProcessStep
 {
     public static class Functions
@@ -307,12 +365,17 @@ public class GatherProductInfoStep : KernelProcessStep
     }
 }
 
+/// <summary>
+/// Chat history
+/// </summary>
 public class GeneratedDocumentationState
 {
     public ChatHistory? ChatHistory { get; set; }
 }
 
-// A process step to generate documentation for a product
+/// <summary>
+/// A process step to generate documentation for a product
+/// </summary>
 public class GenerateDocumentationStep : KernelProcessStep<GeneratedDocumentationState>
 {
     private GeneratedDocumentationState _state = new();
@@ -392,55 +455,14 @@ public class AustralianState
 
 }
 
-
 /// <summary>
-/// Class that represents a controllable alarm.
-/// </summary>
-public class MyAlarmPlugin
-{
-    private string _hour;
-    private DateTime _houroff;
-
-    public MyAlarmPlugin(string providedHour)
-    {
-        this._hour = providedHour;
-        //this._houroff = DateTime.Now;
-    }
-
-    [KernelFunction, Description("Sets an alarm at the provided time")]
-    public string SetAlarm(string time)
-    {
-        this._hour = time;
-        this._houroff = DateTime.Parse(time);
-        return GetCurrentAlarm();
-    }
-
-    [KernelFunction, Description("Get current alarm set")]
-    public string GetCurrentAlarm()
-    {
-        return $"Alarm set for {_hour}, {_houroff}";
-    }
-
-    [KernelFunction, Description("Activate alarm")]
-    public string ActicateAlarm()
-    {
-        if (this._houroff.Minute == DateTime.Now.Minute)
-        {
-            return "Alarm activated at {_hour}";
-        }
-        return $"Alarm set for {_hour}";
-    }
-}
-/// <summary>
-/// Simple plugin that just returns the time.
+/// Simple plugin that  returns the time.
 /// </summary>
 public class MyTimePlugin
 {
     [KernelFunction, Description("Get the current time")]
     public DateTimeOffset Time() => DateTimeOffset.Now;
 }
-
-
 
 
 /// <summary>
@@ -555,17 +577,44 @@ public class CompleteNewCustomerFormStep : KernelProcessStep<NewCustomerFormStat
             Temperature = 0.1f,  //randomness of the output
             NumPredict = 1, // number of predictions to generate
             TopP = 0.2f,  // top probability to sample from, 0 = just use most likely words
+            //ResponseFormat = typeof(Joke)
             //ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
             //Temperature = 0.7,
             //MaxTokens = 2048
         };
 
-        //OpenAIPromptExecutionSettings settings = new()
-        //{
-        //    ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
-        //    Temperature = 0.7,
-        //    MaxTokens = 2048
-        //};
+        var d = JsonDocument.Parse("""
+        {
+            "type": "object",
+            "properties": {
+                "Customer": {
+                        "type": "object",
+                        "properties": {
+                            "FirstName": { "type": "string" },
+                            "lastName": { "type": "string" },
+                            "DOBDetails": { "type": "string" },
+                            "StateOfResidence": { "type": "string" },
+                            "PhoneNumber": { "type": "string" },
+                            "UserId": { "type": "string" },
+                            "PhoneNumber": { "type": "string" },
+                            "EmailAddress": { "type": "string" }
+                        }
+                }
+            },
+            "required": ["Customer"],
+            "additionalProperties": false
+        }
+        """).RootElement;
+
+        // https://github.com/microsoft/semantic-kernel/issues/9919
+        OpenAIPromptExecutionSettings settingsOPENAI = new()
+        {
+            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+            Temperature = 0.7,
+            MaxTokens = 2048,
+            //ResponseFormat = ChatResponseFormat.Json, //"json_object"
+            ResponseFormat = "json_object"  // currently experimental
+        };
 
         ChatHistory chatHistory = new();
         chatHistory.AddSystemMessage(_formCompletionSystemPrompt
@@ -690,48 +739,48 @@ public class NewAccountStep : KernelProcessStep
     {
         // Placeholder for a call to API to create new account for user
         var accountId = new Guid();
-        //AccountDetails accountDetails = new()
-        //{
-        //    UserDateOfBirth = customerDetails.UserDateOfBirth,
-        //    UserFirstName = customerDetails.UserFirstName,
-        //    UserLastName = customerDetails.UserLastName,
-        //    UserId = customerDetails.UserId,
-        //    UserPhoneNumber = customerDetails.UserPhoneNumber,
-        //    UserState = customerDetails.UserState,
-        //    UserEmail = customerDetails.UserEmail,
-        //    AccountId = accountId,
-        //    AccountType = AccountType.PrimeABC,
-        //};
+        AccountDetails accountDetails = new()
+        {
+            UserDateOfBirth = customerDetails.UserDateOfBirth,
+            UserFirstName = customerDetails.UserFirstName,
+            UserLastName = customerDetails.UserLastName,
+            UserId = customerDetails.UserId,
+            UserPhoneNumber = customerDetails.UserPhoneNumber,
+            UserState = customerDetails.UserState,
+            UserEmail = customerDetails.UserEmail,
+            AccountId = accountId,
+            //AccountType = AccountType.PrimeABC,
+        };
 
         Console.WriteLine($"[ACCOUNT CREATION] New Account {accountId} created");
 
         await context.EmitEventAsync(new()
         {
             Id = AccountOpeningEvents.NewMarketingRecordInfoReady,
-            //Data = new MarketingNewEntryDetails
-            //{
-            //    AccountId = accountId,
-            //    Name = $"{customerDetails.UserFirstName} {customerDetails.UserLastName}",
-            //    PhoneNumber = customerDetails.UserPhoneNumber,
-            //    Email = customerDetails.UserEmail,
-            //}
+            Data = new MarketingNewEntryDetails
+            {
+                AccountId = accountId,
+                Name = $"{customerDetails.UserFirstName} {customerDetails.UserLastName}",
+                PhoneNumber = customerDetails.UserPhoneNumber,
+                Email = customerDetails.UserEmail,
+            }
         });
 
         await context.EmitEventAsync(new()
         {
             Id = AccountOpeningEvents.CRMRecordInfoReady,
-            //Data = new AccountUserInteractionDetails
-            //{
-            //    AccountId = accountId,
-            //    UserInteractionType = UserInteractionType.OpeningNewAccount,
-            //    InteractionTranscript = interactionTranscript
-            //}
+            Data = new AccountUserInteractionDetails
+            {
+                AccountId = accountId,
+                UserInteractionType = UserInteractionType.OpeningNewAccount,
+                InteractionTranscript = interactionTranscript
+            }
         });
 
         await context.EmitEventAsync(new()
         {
             Id = AccountOpeningEvents.NewAccountDetailsReady,
-            //Data = accountDetails,
+            Data = accountDetails,
         });
     }
 }
@@ -885,6 +934,51 @@ public static class Functions
 {
     public const string NewAccountProcessUserInfo = nameof(NewAccountProcessUserInfo);
     public const string NewAccountWelcome = nameof(NewAccountWelcome);
+}
+
+public class AccountDetails : NewCustomerForm
+{
+    public Guid AccountId { get; set; }
+    public AccountType AccountType { get; set; }
+}
+
+public enum AccountType
+{
+    PrimeABC,
+    Other,
+}
+
+/// <summary>
+/// Represents the details of interactions between a user and service, including a unique identifier for the account,
+/// a transcript of conversation with the user, and the type of user interaction.<br/>
+/// Class used in <see cref="Step02a_AccountOpening"/>, <see cref="Step02b_AccountOpening"/> samples
+/// </summary>
+public record AccountUserInteractionDetails
+{
+    public Guid AccountId { get; set; }
+
+    public List<ChatMessageContent> InteractionTranscript { get; set; } = [];
+
+    public UserInteractionType UserInteractionType { get; set; }
+}
+
+public enum UserInteractionType
+{
+    Complaint,
+    AccountInfoRequest,
+    OpeningNewAccount
+}
+
+/// <summary>
+/// Holds details for a new entry in a marketing database, including the account identifier, contact name, phone number, and email address.<br/>
+/// Class used in <see cref="Step02a_AccountOpening"/>, <see cref="Step02b_AccountOpening"/> samples
+/// </summary>
+public record MarketingNewEntryDetails
+{
+    public Guid AccountId { get; set; }
+    public string Name { get; set; }
+    public string PhoneNumber { get; set; }
+    public string Email { get; set; }
 }
 
 public class ScriptedUserInputStep : KernelProcessStep<UserInputState>

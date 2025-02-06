@@ -5,11 +5,10 @@ class FxConsole
 {
     static async Task Main(string[] args)
     {
-        var starts = await FillStartMeUps();
+        var starts = await FillStartMeUpsAsync();
 
         // write title
         SpectreConsoleOutput.DisplayTitleH3($"Semantic Kernel Process Framework application using " + starts.ModelName + " coded by Risto.");
-
 
         // user choice scenarios
         var scenarios = SpectreConsoleOutput.SelectScenarios();
@@ -18,15 +17,12 @@ class FxConsole
         // present
         switch (scenario)
         {
-            case "Generate Liquid HTML template":
-                //BasicFxKernel basicFxKernel = new(starts.ModelEndpoint, starts.ModelName);
-                //await basicFxKernel.CreateKernelAsync();
-                break;
-            case "Handlebar function generate nutrition data":
-                ProcessVectors.BasicFxVectors basicFxVectors = new(starts.ModelEndpoint, starts.ModelName);
+            case "Gather customer data for nutrition data":
+                ProcessVectors.ProcessVectors basicFxVectors = new(starts.ModelEndpoint, starts.ModelName);
                 await basicFxVectors.CreateKernelAsync();
                 break;
             case "About":
+                // TODO: Add printing of readme here
                 // code README.md
                 //System.Diagnostics.Process p = new System.Diagnostics.Process();
                 //p.StartInfo.WorkingDirectory = @"C:\Users\risto\source\repos\Kernel";
@@ -38,7 +34,7 @@ class FxConsole
         }
     }
 
-    static async Task<StartMeUps> FillStartMeUps()
+    static async Task<StartMeUps> FillStartMeUpsAsync()
     {
         return await Task.FromResult<StartMeUps>(new StartMeUps
         {

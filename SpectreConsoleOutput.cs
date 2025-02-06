@@ -22,11 +22,10 @@ namespace FxConsole
                         "[grey](Press [blue]<space>[/] to toggle a scenario, " +
                         "[green]<enter>[/] to accept)[/]")
                     .AddChoices(new[] {
-                    "Generate Liquid HTML template",
-                    "Handlebar function generate nutrition data",
+                    "Gather customer data for nutrition data",
                         })
                     .AddChoiceGroup("Open a README", new[]
-                        {"About",
+                        {"About Process",
                         })
                     );
             return scenarios;
