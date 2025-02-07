@@ -697,10 +697,8 @@ public class CompleteNewCustomerFormStep : KernelProcessStep<NewCustomerFormStat
             // Keeping track of all assistant interactions
             _state?.conversation.Add(new ChatMessageContent { Role = AuthorRole.Assistant, Content = assistantResponse });
         }
-        var STT = _state;
-           
-        var fo = (_state?.newCustomerForm != null);
-        var cpl = _state?.newCustomerForm.IsFormCompleted();
+
+        var isit = _state?.newCustomerForm.IsFormCompleted();
 
         if ((_state?.newCustomerForm != null) && (_state?.newCustomerForm.IsFormCompleted() == true ))
         {
