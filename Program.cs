@@ -1,5 +1,7 @@
 ﻿
 
+using ProcessVectors;
+
 namespace FxConsole;
 class FxConsole
 {
@@ -22,6 +24,10 @@ class FxConsole
                 await basicFxVectors.CreateKernelAsync();
                 break;
             case "About":
+                AccountOpening accountOpening = new();
+                accountOpening.SetupAccountOpeningProcess<ScriptedUserInputStep>();
+                //ProcessVectors.ProcessVectors accFxVectors = new(starts.ModelEndpoint, starts.ModelName);
+                //await accFxVectors.CreateAccountKernelAsync();
                 // TODO: Add printing of readme here
                 // code README.md
                 //System.Diagnostics.Process p = new System.Diagnostics.Process();

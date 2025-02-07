@@ -37,7 +37,11 @@ public sealed class ProcessVectors
         this.ModelName = modelName;
     }
 
-
+    public async Task CreateAccountKernelAsync()
+    {
+        AccountOpening accountOpening = new();
+        accountOpening.SetupAccountOpeningProcess<ChatUserInputStep>();
+    }
     public async Task CreateKernelAsync()
     {
         // PROCESS = > WE USE LONG TIMEOUT FOR THE MODEL!
@@ -52,6 +56,21 @@ public sealed class ProcessVectors
         //kernelBuilder.Services.AddLogging(c => c.AddDebug().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
 
         Kernel kernel = kernelBuilder.Build();
+
+
+
+        AccountOpening accountOpening = new();
+        KernelProcess kernelProcessAcc = accountOpening.SetupAccountOpeningProcess<ChatUserInputStep>();
+
+
+        //using var runningProcess = new KernelProcess(kernelProcess);
+        using var runningProcessAcc = await kernelProcessAcc.StartAsync(
+            kernel,
+            new KernelProcessEvent()
+            {
+                Id = ProcessEvents.StartProcess,
+                Data = "Nutrition Assistant for Customers"
+            });
 
         // Initialize ChatResponseFormat object with JSON schema of desired response format.
         // ForJsonSchema = CreateJsonSchemaFormat
@@ -100,31 +119,38 @@ public sealed class ProcessVectors
         kernel.ImportPluginFromObject(webSearchEnginePlugin);
         */
         //Microsoft.SemanticKernel.KernelProcess process = new("ChatBot");
-
+/*
         ProcessBuilder process = new("ChatBot");
-                
-        var emailStep = process.AddStepFromType<IntroStep>();
+        
         var newCustomerFormStep = process.AddStepFromType<CompleteNewCustomerFormStep>();
-        //var userInputStep = process.AddStepFromType<TUserInputStep>();
-        var userInputStep = process.AddStepFromType<ChatUserInputStep>();
+        var userInputStep = process.AddStepFromType<ScriptedUserInputStep>();
         var displayAssistantMessageStep = process.AddStepFromType<DisplayAssistantMessageStep>();
         var customerCreditCheckStep = process.AddStepFromType<CreditScoreCheckStep>();
-        var lastStep = process.AddStepFromType<LastStep>();
+        var fraudDetectionCheckStep = process.AddStepFromType<FraudDetectionStep>();
+        var mailServiceStep = process.AddStepFromType<MailServiceStep>();
+        var coreSystemRecordCreationStep = process.AddStepFromType<NewAccountStep>();
+        /*var marketingRecordCreationStep = process.AddStepFromType<NewMarketingEntryStep>();
+        var crmRecordStep = process.AddStepFromType<CRMRecordCreationStep>();
+        var welcomePacketStep = process.AddStepFromType<WelcomePacketStep>();
+        
+        //old steps
+        //var emailStep = process.AddStepFromType<IntroStep>();
+        //var newCustomerFormStep = process.AddStepFromType<CompleteNewCustomerFormStep>();
+        ////var userInputStep = process.AddStepFromType<TUserInputStep>();
+        //var userInputStep = process.AddStepFromType<ChatUserInputStep>();
+        //var displayAssistantMessageStep = process.AddStepFromType<DisplayAssistantMessageStep>();
+        //var customerCreditCheckStep = process.AddStepFromType<CreditScoreCheckStep>();
+        //var lastStep = process.AddStepFromType<LastStep>();
+        //var accountVerificationStep = process.AddStepFromProcess(NewAccountVerificationProcess.CreateProcess());
 
-        var accountVerificationStep = process.AddStepFromProcess(NewAccountVerificationProcess.CreateProcess());
 
-
-
-        // Define the process flow
-        process
-            .OnInputEvent(ProcessEvents.StartProcess)
-            .SendEventTo(new ProcessFunctionTargetBuilder(newCustomerFormStep, "NewAccountProcessUserInfo"));
+        process.OnInputEvent(AccountOpeningEvents.StartProcess)
+            .SendEventTo(new ProcessFunctionTargetBuilder(newCustomerFormStep, CompleteNewCustomerFormStep.Functions.NewAccountWelcome));
 
         // When the welcome message is generated, send message to displayAssistantMessageStep
         newCustomerFormStep
-           .OnEvent(AccountOpeningEvents.NewCustomerFormWelcomeMessageComplete)
-           .SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
-            //.SendEventTo(new ProcessFunctionTargetBuilder(emailStep));
+            .OnEvent(AccountOpeningEvents.NewCustomerFormWelcomeMessageComplete)
+            .SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
 
         // When the userInput step emits a user input event, send it to the newCustomerForm step
         // Function names are necessary when the step has multiple public functions like CompleteNewCustomerFormStep: NewAccountWelcome and NewAccountProcessUserInfo
@@ -132,7 +158,6 @@ public sealed class ProcessVectors
             .OnEvent(CommonEvents.UserInputReceived)
             .SendEventTo(new ProcessFunctionTargetBuilder(newCustomerFormStep, CompleteNewCustomerFormStep.Functions.NewAccountProcessUserInfo, "userMessage"));
 
-        // bye bye?
         userInputStep
             .OnEvent(CommonEvents.Exit)
             .StopProcess();
@@ -144,10 +169,8 @@ public sealed class ProcessVectors
 
         // After any assistant message is displayed, user input is expected to the next step is the userInputStep
         displayAssistantMessageStep
-            .OnEvent("AssistantResponseGenerated")
+            .OnEvent(CommonEvents.AssistantResponseGenerated)
             .SendEventTo(new ProcessFunctionTargetBuilder(userInputStep, ScriptedUserInputStep.Functions.GetUserInput));
-
-        //TODO: Continue from here!
 
         // When the newCustomerForm is completed...
         newCustomerFormStep
@@ -155,37 +178,108 @@ public sealed class ProcessVectors
             // The information gets passed to the core system record creation step
             .SendEventTo(new ProcessFunctionTargetBuilder(customerCreditCheckStep, functionName: CreditScoreCheckStep.Functions.DetermineCreditScore, parameterName: "customerDetails"))
             // The information gets passed to the fraud detection step for validation
-            //.SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "customerDetails"))
+            .SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "customerDetails"))
             // The information gets passed to the core system record creation step
-            //.SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "customerDetails"));
+            .SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "customerDetails"));
 
-
-        //FunctionResult? getData = await kernel.InvokePromptAsync(
-        //    "Show user first name"
-        //);
-
-        // After any assistant message is displayed, user input is expected to the next step is the userInputStep
-
-
-        // When the newCustomerForm is completed...
+        // When the newCustomerForm is completed, the user interaction transcript with the user is passed to the core system record creation step
         newCustomerFormStep
-            .OnEvent(AccountOpeningEvents.NewCustomerFormCompleted)
-            // The information gets passed to the account verificatino step
-            .SendEventTo(accountVerificationStep.WhereInputEventIs(AccountOpeningEvents.NewCustomerFormCompleted));
+            .OnEvent(AccountOpeningEvents.CustomerInteractionTranscriptReady)
+            .SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "interactionTranscript"));
 
-        // The information gets passed to the validation process step
-        //.SendEventTo(accountCreationStep.WhereInputEventIs(AccountOpeningEvents.NewCustomerFormCompleted));
+        // When the creditScoreCheck step results in Rejection, the information gets to the mailService step to notify the user about the state of the application and the reasons
+        customerCreditCheckStep
+            .OnEvent(AccountOpeningEvents.CreditScoreCheckRejected)
+            .SendEventTo(new ProcessFunctionTargetBuilder(mailServiceStep, functionName: MailServiceStep.Functions.SendMailToUserWithDetails, parameterName: "message"));
 
-        //.OnEvent(AccountOpeningEvents.NewCustomerFormNeedsMoreDetails)
-        //.SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
+        // When the creditScoreCheck step results in Approval, the information gets to the fraudDetection step to kickstart this step
+        customerCreditCheckStep
+            .OnEvent(AccountOpeningEvents.CreditScoreCheckApproved)
+            .SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "previousCheckSucceeded"));
 
-        emailStep
-            .OnFunctionResult()
-            .SendEventTo(new ProcessFunctionTargetBuilder(lastStep));
+        // When the fraudDetectionCheck step fails, the information gets to the mailService step to notify the user about the state of the application and the reasons
+        fraudDetectionCheckStep
+            .OnEvent(AccountOpeningEvents.FraudDetectionCheckFailed)
+            .SendEventTo(new ProcessFunctionTargetBuilder(mailServiceStep, functionName: MailServiceStep.Functions.SendMailToUserWithDetails, parameterName: "message"));
 
-        lastStep
-            .OnFunctionResult()
-            .StopProcess();
+        // When the fraudDetectionCheck step passes, the information gets to core system record creation step to kickstart this step
+        fraudDetectionCheckStep
+            .OnEvent(AccountOpeningEvents.FraudDetectionCheckPassed)
+            .SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "previousCheckSucceeded"));
+
+        
+        //// Define the process flow
+        //process
+        //    .OnInputEvent(ProcessEvents.StartProcess)
+        //    .SendEventTo(new ProcessFunctionTargetBuilder(newCustomerFormStep, "NewAccountProcessUserInfo"));
+
+        //// When the welcome message is generated, send message to displayAssistantMessageStep
+        //newCustomerFormStep
+        //   .OnEvent(AccountOpeningEvents.NewCustomerFormWelcomeMessageComplete)
+        //   .SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
+        //    //.SendEventTo(new ProcessFunctionTargetBuilder(emailStep));
+
+        //// When the userInput step emits a user input event, send it to the newCustomerForm step
+        //// Function names are necessary when the step has multiple public functions like CompleteNewCustomerFormStep: NewAccountWelcome and NewAccountProcessUserInfo
+        //userInputStep
+        //    .OnEvent(CommonEvents.UserInputReceived)
+        //    .SendEventTo(new ProcessFunctionTargetBuilder(newCustomerFormStep, CompleteNewCustomerFormStep.Functions.NewAccountProcessUserInfo, "userMessage"));
+
+        //// bye bye?
+        //userInputStep
+        //    .OnEvent(CommonEvents.Exit)
+        //    .StopProcess();
+
+        //// When the newCustomerForm step emits needs more details, send message to displayAssistantMessage step
+        //newCustomerFormStep
+        //    .OnEvent(AccountOpeningEvents.NewCustomerFormNeedsMoreDetails)
+        //    .SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
+
+        //// After any assistant message is displayed, user input is expected to the next step is the userInputStep
+        //displayAssistantMessageStep
+        //    .OnEvent("AssistantResponseGenerated")
+        //    .SendEventTo(new ProcessFunctionTargetBuilder(userInputStep, ScriptedUserInputStep.Functions.GetUserInput));
+
+        ////TODO: Continue from here!
+
+        //// When the newCustomerForm is completed...
+        //newCustomerFormStep
+        //    .OnEvent(AccountOpeningEvents.NewCustomerFormCompleted)
+        //    // The information gets passed to the core system record creation step
+        //    .SendEventTo(new ProcessFunctionTargetBuilder(customerCreditCheckStep, functionName: CreditScoreCheckStep.Functions.DetermineCreditScore, parameterName: "customerDetails"));
+        //    // The information gets passed to the fraud detection step for validation
+        //    //.SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "customerDetails"))
+        //    // The information gets passed to the core system record creation step
+        //    //.SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "customerDetails"));
+
+
+        ////FunctionResult? getData = await kernel.InvokePromptAsync(
+        ////    "Show user first name"
+        ////);
+
+        //// After any assistant message is displayed, user input is expected to the next step is the userInputStep
+
+
+        //// When the newCustomerForm is completed...
+        //newCustomerFormStep
+        //    .OnEvent(AccountOpeningEvents.NewCustomerFormCompleted)
+        //    // The information gets passed to the account verificatino step
+        //    .SendEventTo(accountVerificationStep.WhereInputEventIs(AccountOpeningEvents.NewCustomerFormCompleted));
+
+        //// The information gets passed to the validation process step
+        ////.SendEventTo(accountCreationStep.WhereInputEventIs(AccountOpeningEvents.NewCustomerFormCompleted));
+
+        ////.OnEvent(AccountOpeningEvents.NewCustomerFormNeedsMoreDetails)
+        ////.SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
+
+        //emailStep
+        //    .OnFunctionResult()
+        //    .SendEventTo(new ProcessFunctionTargetBuilder(lastStep));
+
+        //lastStep
+        //    .OnFunctionResult()
+        //    .StopProcess();
+
 
         // Build the process to get a handle that can be started
         KernelProcess kernelProcess = process.Build();
@@ -198,7 +292,7 @@ public sealed class ProcessVectors
                 Id = ProcessEvents.StartProcess,
                 Data = "Nutrition Assistant for Customers"
             });
-
+*/
 
         //await process.StartAsync(kernel, new KernelProcessEvent { Id = "Start", Data = "Contoso GlowBrew" });
         // var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
@@ -214,13 +308,17 @@ public sealed class ChatUserInputStep : ScriptedUserInputStep
 {
     public override void PopulateUserInputs(UserInputState state)
     {
-        state.UserInputs.Add("Fred");
-        state.UserInputs.Add("Hayes");
-        state.UserInputs.Add("12 11 1988");
-        state.UserInputs.Add("NSW");
-        state.UserInputs.Add("(02) 12345678");
+        state.UserInputs.Add("Fred Hayes");
+        //state.UserInputs.Add("Hayes");
+        state.UserInputs.Add("12/11/1988");
+        state.UserInputs.Add("2913 Franklin phone is 041423522");
+        state.UserInputs.Add("ACT");
+        state.UserInputs.Add("1234567890123");
+        state.UserInputs.Add("TFN: 183064214");
         state.UserInputs.Add("freddie@gmail.com");
-        state.UserInputs.Add("This text will be ignored because exit process condition was already met at this point.");
+        state.UserInputs.Add("what else do you need?");
+        state.UserInputs.Add("all good?");
+        //state.UserInputs.Add("This text will be ignored because exit process condition was already met at this point.");
     }
 
     public override async ValueTask GetUserInputAsync(KernelProcessStepContext context)
@@ -294,13 +392,6 @@ public sealed class IntroStep : KernelProcessStep
 
         await context.EmitEventAsync(new() { Id = "MailServiceSent", Data = message });
     }
-
-    //private async Task<Kernel> CreateKernelWithChatCompletionAsync()
-    //{
-    //    IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
-    //    kernelBuilder.AddOllamaChatCompletion("modelName", new Uri("https://model.endpoint"));
-    //    return kernelBuilder.Build();
-    //}
 }
 
 public sealed class LastStep : KernelProcessStep
@@ -327,42 +418,11 @@ public sealed class ChatBotState
 
 public static class Events
 {
-
     public const string StartProcess = "startProcess";
-
-
-
     public static readonly string SendMailToUserWithDetails = nameof(SendMailToUserWithDetails);
-
     public const string IntroComplete = "introComplete";
     public const string AssistantResponseGenerated = "assistantResponseGenerated";
     public const string Exit = "exit";
-}
-
-// A process step to gather information about a product
-public class GatherProductInfoStep : KernelProcessStep
-{
-    [KernelFunction]
-    public string GatherProductInformation(string productName)
-    {
-        Console.WriteLine($"{nameof(GatherProductInfoStep)}:\n\tGathering product information for product named {productName}");
-
-        // For example purposes we just return some fictional information.
-        return
-            """
-            Product Description:
-            GlowBrew is a revolutionary AI driven coffee machine with industry leading number of LEDs and programmable light shows. The machine is also capable of brewing coffee and has a built in grinder.
-
-            Product Features:
-            1. **Luminous Brew Technology**: Customize your morning ambiance with programmable LED lights that sync with your brewing process.
-            2. **AI Taste Assistant**: Learns your taste preferences over time and suggests new brew combinations to explore.
-            3. **Gourmet Aroma Diffusion**: Built-in aroma diffusers enhance your coffee's scent profile, energizing your senses before the first sip.
-
-            Troubleshooting:
-            - **Issue**: LED Lights Malfunctioning
-                - **Solution**: Reset the lighting settings via the app. Ensure the LED connections inside the GlowBrew are secure. Perform a factory reset if necessary.
-            """;
-    }
 }
 
 /// <summary>
@@ -549,6 +609,7 @@ public class CompleteNewCustomerFormStep : KernelProcessStep<NewCustomerFormStat
     {
         // Creating another kernel that only makes use private functions to fill up the new customer form
         Kernel kernel = new(_baseKernel.Services);
+
         kernel.ImportPluginFromFunctions("FillForm", [
             KernelFunctionFactory.CreateFromMethod(OnUserProvidedFirstName, functionName: nameof(OnUserProvidedFirstName)),
             KernelFunctionFactory.CreateFromMethod(OnUserProvidedLastName, functionName: nameof(OnUserProvidedLastName)),
@@ -559,6 +620,7 @@ public class CompleteNewCustomerFormStep : KernelProcessStep<NewCustomerFormStat
             KernelFunctionFactory.CreateFromMethod(OnUserProvidedEmailAddress, functionName: nameof(OnUserProvidedEmailAddress)),
         ]);
 
+        // kernel.ImportPluginFromFunctions("FillForm");        
         return kernel;
     }
 
@@ -574,16 +636,17 @@ public class CompleteNewCustomerFormStep : KernelProcessStep<NewCustomerFormStat
         {
             // RI
             FunctionChoiceBehavior = FunctionChoiceBehavior.Required(),
-            Temperature = 0.1f,  //randomness of the output
-            NumPredict = 1, // number of predictions to generate
-            TopP = 0.2f,  // top probability to sample from, 0 = just use most likely words
+            
+            //Temperature = 0.1f,  //randomness of the output
+            //NumPredict = 1, // number of predictions to generate
+            //TopP = 0.2f,  // top probability to sample from, 0 = just use most likely words
             //ResponseFormat = typeof(Joke)
             //ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
             //Temperature = 0.7,
             //MaxTokens = 2048
         };
 
-        var d = JsonDocument.Parse("""
+        var testJSON = JsonDocument.Parse("""
         {
             "type": "object",
             "properties": {
@@ -609,11 +672,12 @@ public class CompleteNewCustomerFormStep : KernelProcessStep<NewCustomerFormStat
         // https://github.com/microsoft/semantic-kernel/issues/9919
         OpenAIPromptExecutionSettings settingsOPENAI = new()
         {
-            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+            //ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+            ToolCallBehavior = ToolCallBehavior.EnableKernelFunctions,
             Temperature = 0.7,
-            MaxTokens = 2048,
+            MaxTokens = 2048
             //ResponseFormat = ChatResponseFormat.Json, //"json_object"
-            ResponseFormat = "json_object"  // currently experimental
+            //ResponseFormat = "json_object"  // currently experimental
         };
 
         ChatHistory chatHistory = new();
@@ -621,21 +685,27 @@ public class CompleteNewCustomerFormStep : KernelProcessStep<NewCustomerFormStat
             .Replace("{{current_form_state}}", JsonSerializer.Serialize(_state!.newCustomerForm.CopyWithDefaultValues(), _jsonOptions)));
         chatHistory.AddRange(_state.conversation);
         IChatCompletionService chatService = kernel.Services.GetRequiredService<IChatCompletionService>();
-        ChatMessageContent response = await chatService.GetChatMessageContentAsync(chatHistory, null, kernel).ConfigureAwait(false);
+        //RI
+        ChatMessageContent response = await chatService.GetChatMessageContentAsync(chatHistory, settings, kernel).ConfigureAwait(false);
         var assistantResponse = "";
 
         //*Console.WriteLine(response);
 
         if (response != null)
         {
-            assistantResponse = response.ToString(); //.Items[0].ToString();
+            assistantResponse = response.Items[0].ToString(); //.ToString(); //
             // Keeping track of all assistant interactions
             _state?.conversation.Add(new ChatMessageContent { Role = AuthorRole.Assistant, Content = assistantResponse });
         }
+        var STT = _state;
+           
+        var fo = (_state?.newCustomerForm != null);
+        var cpl = _state?.newCustomerForm.IsFormCompleted();
 
-        if (_state?.newCustomerForm != null && _state.newCustomerForm.IsFormCompleted())
+        if ((_state?.newCustomerForm != null) && (_state?.newCustomerForm.IsFormCompleted() == true ))
         {
             Console.WriteLine($"[NEW_USER_FORM_COMPLETED]: {JsonSerializer.Serialize(_state?.newCustomerForm)}");
+            var form = _state?.newCustomerForm;
             // All user information is gathered to proceed to the next step
             await context.EmitEventAsync(new() { Id = AccountOpeningEvents.NewCustomerFormCompleted, Data = _state?.newCustomerForm, Visibility = KernelProcessEventVisibility.Public });
             await context.EmitEventAsync(new() { Id = AccountOpeningEvents.CustomerInteractionTranscriptReady, Data = _state?.conversation, Visibility = KernelProcessEventVisibility.Public });
@@ -862,6 +932,9 @@ public static class AccountOpeningEvents
     public static readonly string MailServiceSent = nameof(MailServiceSent);
 }
 
+/// <summary>
+/// Represents the data structure for a form capturing details of a new customer, including personal information and contact details.
+/// </summary>
 public class NewCustomerForm
 {
     [JsonPropertyName("userFirstName")]
@@ -981,6 +1054,10 @@ public record MarketingNewEntryDetails
     public string Email { get; set; }
 }
 
+
+/// <summary>
+/// A step that elicits user input.
+///
 public class ScriptedUserInputStep : KernelProcessStep<UserInputState>
 {
     public static class Functions
@@ -1084,24 +1161,73 @@ public static class NewAccountVerificationProcess
         ProcessBuilder process = new("AccountVerificationProcess");
 
         var customerCreditCheckStep = process.AddStepFromType<CreditScoreCheckStep>();
-        //ri
-        //var fraudDetectionCheckStep = process.AddStepFromType<FraudDetectionStep>();
+        var fraudDetectionCheckStep = process.AddStepFromType<FraudDetectionStep>();
 
         // When the newCustomerForm is completed...
         process
             .OnInputEvent(AccountOpeningEvents.NewCustomerFormCompleted)
             // The information gets passed to the core system record creation step
-            .SendEventTo(new ProcessFunctionTargetBuilder(customerCreditCheckStep, functionName: CreditScoreCheckStep.Functions.DetermineCreditScore, parameterName: "customerDetails"));
-        // The information gets passed to the fraud detection step for validation
-        //ri
-        //.SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "customerDetails"));
+            .SendEventTo(new ProcessFunctionTargetBuilder(customerCreditCheckStep, functionName: CreditScoreCheckStep.Functions.DetermineCreditScore, parameterName: "customerDetails"))
+            // The information gets passed to the fraud detection step for validation
+            .SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "customerDetails"));
 
         // When the creditScoreCheck step results in Approval, the information gets to the fraudDetection step to kickstart this step
         customerCreditCheckStep
-            .OnEvent(AccountOpeningEvents.CreditScoreCheckApproved);
-        //ri
-        //.SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "previousCheckSucceeded"));
+            .OnEvent(AccountOpeningEvents.CreditScoreCheckApproved)
+            .SendEventTo(new ProcessFunctionTargetBuilder(fraudDetectionCheckStep, functionName: FraudDetectionStep.Functions.FraudDetectionCheck, parameterName: "previousCheckSucceeded"));
 
         return process;
+    }
+}
+
+/// <summary>
+/// Mock step that emulates a Fraud detection check, based on the userId the fraud detection will pass or fail.
+/// </summary>
+public class FraudDetectionStep : KernelProcessStep
+{
+    public static class Functions
+    {
+        public const string FraudDetectionCheck = nameof(FraudDetectionCheck);
+    }
+
+    [KernelFunction(Functions.FraudDetectionCheck)]
+    public async Task FraudDetectionCheckAsync(KernelProcessStepContext context, bool previousCheckSucceeded, NewCustomerForm customerDetails, Kernel _kernel)
+    {
+        // Placeholder for a call to API to validate user details for fraud detection
+        if (customerDetails.UserFirstName == "Fred")
+        {
+            Console.WriteLine("[FRAUD CHECK] Fraud Check Failed");
+            await context.EmitEventAsync(new()
+            {
+                Id = AccountOpeningEvents.FraudDetectionCheckFailed,
+                Data = "We regret to inform you that we found some inconsistent details regarding the information you provided regarding the new account of the type PRIME ABC you applied.",
+                Visibility = KernelProcessEventVisibility.Public,
+            });
+            return;
+        }
+
+        Console.WriteLine("[FRAUD CHECK] Fraud Check Passed");
+        await context.EmitEventAsync(new() { Id = AccountOpeningEvents.FraudDetectionCheckPassed, Data = true, Visibility = KernelProcessEventVisibility.Public });
+    }
+}
+
+/// <summary>
+/// Mock step that emulates Mail Service with a message for the user.
+/// </summary>
+public class MailServiceStep : KernelProcessStep
+{
+    public static class Functions
+    {
+        public const string SendMailToUserWithDetails = nameof(SendMailToUserWithDetails);
+    }
+
+    [KernelFunction(Functions.SendMailToUserWithDetails)]
+    public async Task SendMailServiceAsync(KernelProcessStepContext context, string message)
+    {
+        Console.WriteLine("======== MAIL SERVICE ======== ");
+        Console.WriteLine(message);
+        Console.WriteLine("============================== ");
+
+        await context.EmitEventAsync(new() { Id = AccountOpeningEvents.MailServiceSent, Data = message });
     }
 }
