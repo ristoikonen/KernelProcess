@@ -25,7 +25,7 @@ namespace FxConsole
                     "Gather customer data for nutrition data",
                         })
                     .AddChoiceGroup("Open a README", new[]
-                        {"About Process",
+                        {"About",
                         })
                     );
             return scenarios;

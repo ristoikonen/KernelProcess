@@ -1,33 +1,63 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
+
 
 namespace SKProcess
 {
     public static class Utilities
     {
-        //TODO: finish this
-        public static async Task StoreJSONAsync(string storeMe)
-        {
-            string jsonString = JsonSerializer.Serialize(storeMe);
-            string fileName = "WeatherForecast.json";
-            await using FileStream createStream = File.Create(fileName);
-            await JsonSerializer.SerializeAsync(createStream, jsonString);
+        const string jsonDirectory = @"C:\tmp\";
+        public static List<string> Hashses { get; set; }
 
-            Console.WriteLine(File.ReadAllText(fileName));
+        //TODO: finish this
+        public static async Task<bool> ExsistAsync( string emailAddress)
+        {
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                string hash = GetHash(sha256Hash, emailAddress);
+                Console.WriteLine($"The SHA256 hash of {emailAddress} is: {hash}.");
+
+                if (new DirectoryInfo(jsonDirectory).GetFiles().Select(f => f.Name).ToArray().Contains(hash))
+                {
+                    return true;
+                }
+                //Directory.EnumerateFiles("*.json").First();
+            }
+
+            //string fileName = "Account.json";
+            //await using FileStream createStream = File.Create(fileName);
+            //await JsonSerializer.SerializeAsync(createStream, jsonString);
+
+            //Console.WriteLine(File.ReadAllText(fileName));
+            
+            return false;
         }
-        public static List<string> AllHashses { get; set; }
+
+        //TODO: finish this
+        public static async Task StoreJSONAsync(string jsonString, string emailAddress)
+        {
+            //string jsonString = JsonSerializer.Serialize(storeMe);
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                string hash = GetHash(sha256Hash, emailAddress);
+                Console.WriteLine($"The SHA256 hash of {emailAddress} is: {hash}.");
+
+                string fileName = hash ?? "Account.json";
+                await using FileStream createStream = File.Create(fileName);
+                await JsonSerializer.SerializeAsync(createStream, jsonString);
+
+                Console.WriteLine(File.ReadAllText(fileName));
+            }
+        }
 
         public static void AddTohashCollection(string addMe)
         {
-        // check if exsuist?
-        AllHashses.Add(addMe);
+            // check if exsuist?
+            Hashses.Add(addMe);
         }
-        //TODo to bool
+
+        //TODO to bool
         public static void Matches(string comapereMe)
         {
             string source = "Hello World!";

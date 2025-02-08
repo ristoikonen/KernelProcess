@@ -25,7 +25,7 @@ class FxConsole
                 break;
             case "About":
                 AccountOpening accountOpening = new();
-                accountOpening.SetupAccountOpeningProcess<ScriptedUserInputStep>();
+                await accountOpening.SetupAccountOpeningProcessAsync<ScriptedUserInputStep>();
                 //ProcessVectors.ProcessVectors accFxVectors = new(starts.ModelEndpoint, starts.ModelName);
                 //await accFxVectors.CreateAccountKernelAsync();
                 // TODO: Add printing of readme here

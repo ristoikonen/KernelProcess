@@ -13,6 +13,8 @@ using System.Reflection;
 using Microsoft.SemanticKernel.Process;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Microsoft.Extensions.Logging;
+
 
 namespace ProcessVectors;
 
@@ -40,7 +42,7 @@ public sealed class ProcessVectors
     public async Task CreateAccountKernelAsync()
     {
         AccountOpening accountOpening = new();
-        accountOpening.SetupAccountOpeningProcess<ChatUserInputStep>();
+        accountOpening.SetupAccountOpeningProcessAsync<ChatUserInputStep>();
     }
     public async Task CreateKernelAsync()
     {
@@ -53,15 +55,26 @@ public sealed class ProcessVectors
 
         IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
         kernelBuilder.AddOllamaChatCompletion(this.ModelName, httpClient2minTimeout);
+
         //kernelBuilder.Services.AddLogging(c => c.AddDebug().SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace));
+        //.Services.AddLogging(c => c.  ().SetMinimumLevel(LogLevel.Trace));
+        //ServiceProvider serviceProvider = new ServiceCollection()
+        //    .AddLogging((loggingBuilder) => loggingBuilder
+        //        .SetMinimumLevel(LogLevel.Trace)
+        //        .AddConsole()
+        //        )
+        //    .BuildServiceProvider();
+        //var logger = serviceProvider.GetService<ILoggerFactory>().CreateLogger<Program>();
+
 
         Kernel kernel = kernelBuilder.Build();
 
-
+        // Add logging
+        //var logger = kernel.Services.GetRequiredService<ILogger<ProcessVectors>>();
+        //logger.LogDebug("Logger added to kernel.");
 
         AccountOpening accountOpening = new();
-        KernelProcess kernelProcessAcc = accountOpening.SetupAccountOpeningProcess<ChatUserInputStep>();
-
+        KernelProcess kernelProcessAcc =  await accountOpening.SetupAccountOpeningProcessAsync<ChatUserInputStep>();
 
         //using var runningProcess = new KernelProcess(kernelProcess);
         using var runningProcessAcc = await kernelProcessAcc.StartAsync(
@@ -72,39 +85,7 @@ public sealed class ProcessVectors
                 Data = "Nutrition Assistant for Customers"
             });
 
-        // Initialize ChatResponseFormat object with JSON schema of desired response format.
-        // ForJsonSchema = CreateJsonSchemaFormat
-        //ChatResponseFormat chatResponseFormat = ChatResponseFormat.ForJsonSchema(
-        //schemaName: "customer_result",
-        //schemaDescription: "Store Customer data",
-        //schema: JsonDocument.Parse("""
-        //{
-        //    "type": "object",
-        //    "properties": {
-        //        "Customer": {
-        //                "type": "object",
-        //                "properties": {
-        //                    "FirstName": { "type": "string" },
-        //                    "lastName": { "type": "string" },
-        //                    "DOBDetails": { "type": "string" },
-        //                    "StateOfResidence": { "type": "string" },
-        //                    "PhoneNumber": { "type": "string" },
-        //                    "UserId": { "type": "string" },
-        //                    "PhoneNumber": { "type": "string" },
-        //                    "EmailAddress": { "type": "string" }
-        //                }
-        //        }
-        //    },
-        //    "required": ["Customer"],
-        //    "additionalProperties": false
-        //}
-        //""").RootElement);
 
-
-        //var letsee = chatResponseFormat...Schema.ToString();
-        //"required": ["Title", "Director", "ReleaseYear", "Rating", "IsAvailableOnStreaming", "Tags"],
-        //"additionalProperties": false
-        //"Tags": { "type": "array", "items": { "type": "string" } }
 
 
         /*
@@ -118,6 +99,7 @@ public sealed class ProcessVectors
 
         kernel.ImportPluginFromObject(webSearchEnginePlugin);
         */
+
         //Microsoft.SemanticKernel.KernelProcess process = new("ChatBot");
 /*
         ProcessBuilder process = new("ChatBot");
@@ -308,12 +290,11 @@ public sealed class ChatUserInputStep : ScriptedUserInputStep
 {
     public override void PopulateUserInputs(UserInputState state)
     {
-        state.UserInputs.Add("Fred Hayes");
+        state.UserInputs.Add("I am Fred Hayes");
         //state.UserInputs.Add("Hayes");
         state.UserInputs.Add("12/11/1988");
-        state.UserInputs.Add("2913 Franklin phone is 041423522");
+        state.UserInputs.Add("I live in 2913 Franklin my phone is 041423522");
         state.UserInputs.Add("ACT");
-        state.UserInputs.Add("1234567890123");
         state.UserInputs.Add("TFN: 183064214");
         state.UserInputs.Add("freddie@gmail.com");
         state.UserInputs.Add("what else do you need?");
@@ -698,15 +679,17 @@ public class CompleteNewCustomerFormStep : KernelProcessStep<NewCustomerFormStat
             _state?.conversation.Add(new ChatMessageContent { Role = AuthorRole.Assistant, Content = assistantResponse });
         }
 
-        var isit = _state?.newCustomerForm.IsFormCompleted();
+        var cpl = _state?.newCustomerForm.IsFormCompleted();
 
         if ((_state?.newCustomerForm != null) && (_state?.newCustomerForm.IsFormCompleted() == true ))
-        {
-            Console.WriteLine($"[NEW_USER_FORM_COMPLETED]: {JsonSerializer.Serialize(_state?.newCustomerForm)}");
+        { 
             var form = _state?.newCustomerForm;
+            // TODO: store json in a file
+            var jsoncust = JsonSerializer.Serialize(form);
+            Console.WriteLine($"[NEW_USER_FORM_COMPLETED]: {jsoncust}");
             // All user information is gathered to proceed to the next step
-            await context.EmitEventAsync(new() { Id = AccountOpeningEvents.NewCustomerFormCompleted, Data = _state?.newCustomerForm, Visibility = KernelProcessEventVisibility.Public });
-            await context.EmitEventAsync(new() { Id = AccountOpeningEvents.CustomerInteractionTranscriptReady, Data = _state?.conversation, Visibility = KernelProcessEventVisibility.Public });
+            await context.EmitEventAsync(new() { Id = AccountOpeningEvents.NewCustomerFormCompleted, Data = form, Visibility = KernelProcessEventVisibility.Public });
+            await context.EmitEventAsync(new() { Id = AccountOpeningEvents.CustomerInteractionTranscriptReady, Data = form, Visibility = KernelProcessEventVisibility.Public });
             return;
         }
 
@@ -817,7 +800,7 @@ public class NewAccountStep : KernelProcessStep
             UserState = customerDetails.UserState,
             UserEmail = customerDetails.UserEmail,
             AccountId = accountId,
-            //AccountType = AccountType.PrimeABC,
+            AccountType = AccountType.PrimeABC,
         };
 
         Console.WriteLine($"[ACCOUNT CREATION] New Account {accountId} created");
@@ -1076,6 +1059,8 @@ public class ScriptedUserInputStep : KernelProcessStep<UserInputState>
     /// <param name="state">The initialized state object for the step.</param>
     public virtual void PopulateUserInputs(UserInputState state)
     {
+        //state.UserInputs.Add("PopulateUserInputs.");
+        
         return;
     }
 
@@ -1100,6 +1085,9 @@ public class ScriptedUserInputStep : KernelProcessStep<UserInputState>
         {
             var userMessage = this._state!.UserInputs[_state.CurrentInputIndex];
             _state.CurrentInputIndex++;
+
+            //_state?.newCustomerForm.UserFirstName = "Fred"; // RI
+            //this._state!.UserInputs.
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"USER: {userMessage}");
@@ -1142,9 +1130,6 @@ public record UserInputState
     public List<string> UserInputs { get; init; } = [];
     public int CurrentInputIndex { get; set; } = 0;
  }
-
-
-
 
 /// <summary>
 /// Demonstrate creation of <see cref="KernelProcess"/> and

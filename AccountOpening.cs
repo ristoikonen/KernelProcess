@@ -1,14 +1,12 @@
 ﻿using Microsoft.SemanticKernel;
-using ProcessVectors;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Utilities;
 
 
 namespace ProcessVectors;
 
+    /// <summary>
+    /// Get customer data, do fraud dectetion before opening an account
+    /// </summary>
     public class AccountOpening //:BaseTest
     {
         #pragma warning disable SKEXP0070 // Chat completion connector is currently experimental.
@@ -20,7 +18,7 @@ namespace ProcessVectors;
         // Target Open AI Services
         //protected override bool ForceOpenAI => true;
 
-        public KernelProcess SetupAccountOpeningProcess<TUserInputStep>() where TUserInputStep : ScriptedUserInputStep
+        public async Task<KernelProcess> SetupAccountOpeningProcessAsync<TUserInputStep>() where TUserInputStep : ScriptedUserInputStep
         {
             ProcessBuilder process = new("AccountOpeningProcess");
             var newCustomerFormStep = process.AddStepFromType<CompleteNewCustomerFormStep>();
@@ -48,16 +46,13 @@ namespace ProcessVectors;
                 .OnEvent(CommonEvents.UserInputReceived)
                 .SendEventTo(new ProcessFunctionTargetBuilder(newCustomerFormStep, CompleteNewCustomerFormStep.Functions.NewAccountProcessUserInfo, "userMessage"));
 
-        //userInputStep
-        //    .OnEvent(CommonEvents.Exit)
-        //    .StopProcess();
-
-
-
+            //userInputStep
+            //    .OnEvent(CommonEvents.Exit)
+            //    .StopProcess();
 
         // When the newCustomerForm step emits needs more details, send message to displayAssistantMessage step
-        newCustomerFormStep
-            .OnEvent(AccountOpeningEvents.NewCustomerFormNeedsMoreDetails)
+            newCustomerFormStep
+                .OnEvent(AccountOpeningEvents.NewCustomerFormNeedsMoreDetails)
                 .SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
 
             // After any assistant message is displayed, user input is expected to the next step is the userInputStep
@@ -137,6 +132,7 @@ namespace ProcessVectors;
                         .StopProcess();
         */
             KernelProcess kernelProcess = process.Build();
+            //string generatedImagePath = await MermaidRenderer.GenerateMermaidImageAsync(kernelProcess.ToMermaid(), "AccountOpeningProcess.png");
 
             return kernelProcess;
         }
