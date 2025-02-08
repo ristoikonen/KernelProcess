@@ -26,10 +26,12 @@ I belive it or similar, will be useful as a bridge between AI and business proce
             return;
         }
 
+### Process Framework Events
+| Type | Events |
+| -------- | ------- |
+| Step Events | OnEvent, OnFunctionResult, SendOutputTo | 
+| OnEvent | Triggered when the class completes its execution. |
+| OnFunctionResult | Activated when the defined Kernel Function emits results, allowing output to be sent to one or many Steps. |
+| SendOutputTo | Defines the Step and Input for sending results to a subsequent Step. |
 
-
-Step Events: OnEvent, OnFunctionResult, SendOutputTo
-OnEvent: Triggered when the class completes its execution.
-OnFunctionResult: Activated when the defined Kernel Function emits results, allowing output to be sent to one or many Steps.
-SendOutputTo: Defines the Step and Input for sending results to a subsequent Step.
 
