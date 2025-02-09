@@ -24,8 +24,8 @@ namespace FxConsole
                     .AddChoices(new[] {
                     "Gather customer data for nutrition data",
                         })
-                    .AddChoiceGroup("Open a README", new[]
-                        {"About",
+                    .AddChoiceGroup("Open an Account", new[]
+                        {"New Account", "tester"
                         })
                     );
             return scenarios;
