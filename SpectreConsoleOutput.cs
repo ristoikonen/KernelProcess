@@ -25,7 +25,7 @@ namespace FxConsole
                     "Gather customer data for nutrition data",
                         })
                     .AddChoiceGroup("Open an Account", new[]
-                        {"New Account", "tester"
+                        {"CreateStore", "CreateStore"
                         })
                     );
             return scenarios;

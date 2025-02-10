@@ -2,6 +2,7 @@
 
 using Microsoft.Extensions.AI;
 using ProcessVectors;
+using SKProcess;
 using System;
 using System.Runtime.CompilerServices;
 using static FxConsole.FxConsole;
@@ -36,6 +37,15 @@ class FxConsole
                 await accountOpening.SetupAccountOpeningProcessAsync<ScriptedUserInputStep>();
                 
                 break;
+            case "CreateStore":
+                SpectreConsoleOutput.DisplayTitleH3($"Create Vector Store, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
+                CreateVectorStore createVectorStore = new();
+                await createVectorStore.CreateStoreAsync(starts);
+
+                break;
+
+
+                
         }
     }
 

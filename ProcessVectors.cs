@@ -14,6 +14,8 @@ using Microsoft.SemanticKernel.Process;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.VectorData;
+using Microsoft.SemanticKernel.Data;
 
 
 namespace ProcessVectors;
@@ -913,15 +915,45 @@ public static class AccountOpeningEvents
     public static readonly string MailServiceSent = nameof(MailServiceSent);
 }
 
+/*
+private sealed class DataModel
+{
+    [VectorStoreRecordKey]
+    [TextSearchResultName]
+    public Guid Key { get; init; }
+
+    [VectorStoreRecordData]
+    [TextSearchResultValue]
+    public string Text { get; init; }
+
+    [VectorStoreRecordVector(1536)]
+    public ReadOnlyMemory<float> Embedding { get; init; }
+}
+*/
+
+
 /// <summary>
 /// Represents the data structure for a form capturing details of a new customer, including personal information and contact details.
 /// </summary>
 public class NewCustomerForm
 {
+
+    //Key = Guid.NewGuid()
+    [VectorStoreRecordKey]
+    [TextSearchResultName]
+    public Guid Key { get; init; }
+
     [JsonPropertyName("userFirstName")]
+    [VectorStoreRecordData]
     public string UserFirstName { get; set; } = string.Empty;
 
+
+    [VectorStoreRecordData]
+    [TextSearchResultValue]
+    public string Text { get; set; } = string.Empty;
+
     [JsonPropertyName("userLastName")]
+    [VectorStoreRecordData]
     public string UserLastName { get; set; } = string.Empty;
 
     [JsonPropertyName("userDateOfBirth")]
@@ -937,7 +969,11 @@ public class NewCustomerForm
     public string UserId { get; set; } = string.Empty;
 
     [JsonPropertyName("userEmail")]
+    [VectorStoreRecordData]
     public string UserEmail { get; set; } = string.Empty;
+
+    [VectorStoreRecordVector(1536)]
+    public ReadOnlyMemory<float> Embedding { get; init; }
 
     public NewCustomerForm CopyWithDefaultValues(string defaultStringValue = "Unanswered")
     {
