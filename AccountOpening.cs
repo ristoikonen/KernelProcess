@@ -1,6 +1,6 @@
 ﻿using Microsoft.SemanticKernel;
 using Utilities;
-
+using SKProcess.Steps;
 
 namespace ProcessVectors;
 
@@ -28,9 +28,9 @@ namespace ProcessVectors;
             var fraudDetectionCheckStep = process.AddStepFromType<FraudDetectionStep>();
             var mailServiceStep = process.AddStepFromType<MailServiceStep>();
             var coreSystemRecordCreationStep = process.AddStepFromType<NewAccountStep>();
-            //var marketingRecordCreationStep = process.AddStepFromType<NewMarketingEntryStep>();
+            var marketingRecordCreationStep = process.AddStepFromType<NewMarketingEntryStep>();
             //var crmRecordStep = process.AddStepFromType<CRMRecordCreationStep>();
-            //var welcomePacketStep = process.AddStepFromType<WelcomePacketStep>();
+            var welcomePacketStep = process.AddStepFromType<WelcomePacketStep>();
 
             process.OnInputEvent(AccountOpeningEvents.StartProcess)
                 .SendEventTo(new ProcessFunctionTargetBuilder(newCustomerFormStep, CompleteNewCustomerFormStep.Functions.NewAccountWelcome));
@@ -50,7 +50,7 @@ namespace ProcessVectors;
             //    .OnEvent(CommonEvents.Exit)
             //    .StopProcess();
 
-        // When the newCustomerForm step emits needs more details, send message to displayAssistantMessage step
+            // When the newCustomerForm step emits needs more details, send message to displayAssistantMessage step
             newCustomerFormStep
                 .OnEvent(AccountOpeningEvents.NewCustomerFormNeedsMoreDetails)
                 .SendEventTo(new ProcessFunctionTargetBuilder(displayAssistantMessageStep, DisplayAssistantMessageStep.Functions.DisplayAssistantMessage));
@@ -94,28 +94,28 @@ namespace ProcessVectors;
             fraudDetectionCheckStep
                 .OnEvent(AccountOpeningEvents.FraudDetectionCheckPassed)
                 .SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "previousCheckSucceeded"));
-        /*
-         * // When the coreSystemRecordCreation step successfully creates a new accountId, it will trigger the creation of a new marketing entry through the marketingRecordCreation step
+
+          // When the coreSystemRecordCreation step successfully creates a new accountId, it will trigger the creation of a new marketing entry through the marketingRecordCreation step
                     coreSystemRecordCreationStep
                         .OnEvent(AccountOpeningEvents.NewMarketingRecordInfoReady)
                         .SendEventTo(new ProcessFunctionTargetBuilder(marketingRecordCreationStep, functionName: NewMarketingEntryStep.Functions.CreateNewMarketingEntry, parameterName: "userDetails"));
-
+        /*
                     // When the coreSystemRecordCreation step successfully creates a new accountId, it will trigger the creation of a new CRM entry through the crmRecord step
                     coreSystemRecordCreationStep
                         .OnEvent(AccountOpeningEvents.CRMRecordInfoReady)
                         .SendEventTo(new ProcessFunctionTargetBuilder(crmRecordStep, functionName: CRMRecordCreationStep.Functions.CreateCRMEntry, parameterName: "userInteractionDetails"));
-
+        
                     // ParameterName is necessary when the step has multiple input arguments like welcomePacketStep.CreateWelcomePacketAsync
                     // When the coreSystemRecordCreation step successfully creates a new accountId, it will pass the account information details to the welcomePacket step
                     coreSystemRecordCreationStep
                         .OnEvent(AccountOpeningEvents.NewAccountDetailsReady)
                         .SendEventTo(new ProcessFunctionTargetBuilder(welcomePacketStep, parameterName: "accountDetails"));
-
+        */
                     // When the marketingRecordCreation step successfully creates a new marketing entry, it will notify the welcomePacket step it is ready
                     marketingRecordCreationStep
                         .OnEvent(AccountOpeningEvents.NewMarketingEntryCreated)
                         .SendEventTo(new ProcessFunctionTargetBuilder(welcomePacketStep, parameterName: "marketingEntryCreated"));
-
+        /*
                     // When the crmRecord step successfully creates a new CRM entry, it will notify the welcomePacket step it is ready
                     crmRecordStep
                         .OnEvent(AccountOpeningEvents.CRMRecordInfoEntryCreated)
@@ -131,7 +131,7 @@ namespace ProcessVectors;
                         .OnEvent(AccountOpeningEvents.MailServiceSent)
                         .StopProcess();
         */
-            KernelProcess kernelProcess = process.Build();
+        KernelProcess kernelProcess = process.Build();
             //string generatedImagePath = await MermaidRenderer.GenerateMermaidImageAsync(kernelProcess.ToMermaid(), "AccountOpeningProcess.png");
 
             return kernelProcess;

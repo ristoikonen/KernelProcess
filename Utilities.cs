@@ -24,6 +24,7 @@ namespace SKProcess
         const string jsonDirectory = @"C:\tmp\";
         public static List<string> Hashses { get; set; }
 
+
         //TODO: finish this
         public static async Task<bool> ExsistAsync(string fileNameB4hashing, string jsonDirectory)
         {

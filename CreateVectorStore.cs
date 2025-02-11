@@ -100,7 +100,7 @@ namespace SKProcess
 
             // Get and create collection if it doesn't exist.
             //var recordCollection = vectorStore.GetCollection<TKey, TRecord>(collectionName);
-            var recordCollection = vectorStore.GetCollection<Guid, NewCustomerForm>(collectionName);
+            var recordCollection = vectorStore.GetCollection<string, NewCustomerForm>(collectionName);
             await recordCollection.CreateCollectionIfNotExistsAsync().ConfigureAwait(false);
 
 
@@ -112,19 +112,19 @@ namespace SKProcess
             {
                 return new()
                 {
-                    Key = Guid.NewGuid(),
+                    //Key = "", //Guid.NewGuid(),
                     Text = text,
                     //UserEmail = email,
                     Embedding = embedding
-                };
+                }; 
             }
 
             List<NewCustomerForm> l = new List<NewCustomerForm>() {  
                 
-                new NewCustomerForm() { UserLastName = "Nett", Key = Guid.NewGuid(), Text = "I am good milk driker but I do not like apples" },
-                new NewCustomerForm() { UserLastName = "Hamilton", Key = Guid.NewGuid(), Text = "I like to eat apples but do not like olive oil" },
-                new NewCustomerForm() { UserLastName = "Franck", Key = Guid.NewGuid(), Text = "I eat onions" },
-                new NewCustomerForm() { UserLastName = "Aaron", Key = Guid.NewGuid(), Text = "i like milk" }
+                new NewCustomerForm() { UserLastName = "Nett",  Text = "I am good milk driker but I do not like apples" },
+                new NewCustomerForm() { UserLastName = "Hamilton",  Text = "I like to eat apples but do not like olive oil" },
+                new NewCustomerForm() { UserLastName = "Franck",  Text = "I eat onions" },
+                new NewCustomerForm() { UserLastName = "Aaron",  Text = "i like milk" }
 
             };
             
@@ -143,7 +143,7 @@ namespace SKProcess
                 "My Name is Mary Hamilton." //, I am from Sydney.\n I like to eat apples but do not like olive oil"
             ];
 
-            var vectorizedSearch = await CreateCollectionFromListAsync<Guid, NewCustomerForm>(
+            var vectorizedSearch = await CreateCollectionFromListAsync<string, NewCustomerForm>(
                 vectorStore, collectionName, lines, embeddingGenerator, CreateRecord);
 
 
@@ -295,7 +295,7 @@ namespace SKProcess
             Console.WriteLine("\n--- DataModel Results ---\n");
             await foreach (NewCustomerForm result in fullResults.Results)
             {
-                Console.WriteLine($"Key:         {result.Key}");
+                //Console.WriteLine($"Key:         {result.Key}");
                 Console.WriteLine($"Text:        {result.UserEmail}");
                 Console.WriteLine($"Embedding:   {result.Embedding.Length}");
                 Console.WriteLine($"{new string('_', 30)}");

@@ -46,6 +46,7 @@ public sealed class ProcessVectors
         AccountOpening accountOpening = new();
         accountOpening.SetupAccountOpeningProcessAsync<ChatUserInputStep>();
     }
+
     public async Task CreateKernelAsync()
     {
         // PROCESS = > WE USE LONG TIMEOUT FOR THE MODEL!
@@ -285,6 +286,7 @@ public sealed class ProcessVectors
 }
 
 
+
 /// <summary>
 /// A step that elicits user input.
 /// </summary>
@@ -301,6 +303,8 @@ public sealed class ChatUserInputStep : ScriptedUserInputStep
         state.UserInputs.Add("freddie@gmail.com");
         state.UserInputs.Add("what else do you need?");
         state.UserInputs.Add("all good?");
+        state.UserInputs.Add("whats next");
+        state.UserInputs.Add("what is going on?");
         //state.UserInputs.Add("This text will be ignored because exit process condition was already met at this point.");
     }
 
@@ -849,7 +853,8 @@ public class CreditScoreCheckStep : KernelProcessStep
         public const string DetermineCreditScore = nameof(DetermineCreditScore);
     }
 
-    private const int MinCreditScore = 600;
+    // tune this value to test the credit score check
+    private const int MinCreditScore = 400;
 
     [KernelFunction(Functions.DetermineCreditScore)]
     public async Task DetermineCreditScoreAsync(KernelProcessStepContext context, NewCustomerForm customerDetails, Kernel _kernel)
@@ -939,9 +944,10 @@ public class NewCustomerForm
 {
 
     //Key = Guid.NewGuid()
-    [VectorStoreRecordKey]
-    [TextSearchResultName]
-    public Guid Key { get; init; }
+    //[JsonPropertyName("Key")]
+    //[VectorStoreRecordKey]
+    //[TextSearchResultName]
+    //public string Key { get; set; } = string.Empty;
 
     [JsonPropertyName("userFirstName")]
     [VectorStoreRecordData]
@@ -973,6 +979,7 @@ public class NewCustomerForm
     public string UserEmail { get; set; } = string.Empty;
 
     [VectorStoreRecordVector(1536)]
+    [JsonPropertyName("embedding")]
     public ReadOnlyMemory<float> Embedding { get; init; }
 
     public NewCustomerForm CopyWithDefaultValues(string defaultStringValue = "Unanswered")
@@ -984,15 +991,17 @@ public class NewCustomerForm
         {
             // Get the value of the property  
             string? value = property.GetValue(this) as string;
-
-            // Check if the value is an empty string  
-            if (string.IsNullOrEmpty(value))
+            if(property.GetType() == typeof(string))
             {
-                property.SetValue(copy, defaultStringValue);
-            }
-            else
-            {
-                property.SetValue(copy, value);
+                // Check if the value is an empty string  
+                if (string.IsNullOrEmpty(value))
+                {
+                    property.SetValue(copy, defaultStringValue);
+                }
+                else
+                {
+                    property.SetValue(copy, value);
+                }
             }
         }
 
@@ -1213,7 +1222,7 @@ public class FraudDetectionStep : KernelProcessStep
     public async Task FraudDetectionCheckAsync(KernelProcessStepContext context, bool previousCheckSucceeded, NewCustomerForm customerDetails, Kernel _kernel)
     {
         // Placeholder for a call to API to validate user details for fraud detection
-        if (customerDetails.UserFirstName == "Fred")
+        if (customerDetails.UserFirstName == "Fredde")
         {
             Console.WriteLine("[FRAUD CHECK] Fraud Check Failed");
             await context.EmitEventAsync(new()
