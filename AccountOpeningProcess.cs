@@ -1,7 +1,6 @@
 ﻿using Microsoft.SemanticKernel;
-using Utilities;
 using SKProcess.Steps;
-using FxConsole;
+
 
 namespace ProcessVectors;
 
@@ -17,12 +16,12 @@ namespace ProcessVectors;
 /// For each test there is a different set of user messages that will cause different steps to be triggered using the same pipeline.<br/>
 /// For visual reference of the process check the <see href="https://github.com/microsoft/semantic-kernel/tree/main/dotnet/samples/GettingStartedWithProcesses/README.md#step02a_accountOpening" >diagram</see>.
 /// </summary>
-public class AccountOpeningProcess() //: BaseTest(output, redirectSystemConsoleOutput: true)
+public class Step02b_AccountOpening() //: BaseTest(output, redirectSystemConsoleOutput: true)
 {
     // Target Open AI Services
     //protected override bool ForceOpenAI => true;
     //StartMeUps startMeUps
-    private KernelProcess SetupAccountOpeningProcess<TUserInputStep>() where TUserInputStep : ScriptedUserInputStep
+    public async Task<KernelProcess> SetupAccountOpeningProcessAsync<TUserInputStep>() where TUserInputStep : ScriptedUserInputStep
     {
         ProcessBuilder process = new("AccountOpeningProcessWithSubprocesses");
         var newCustomerFormStep = process.AddStepFromType<CompleteNewCustomerFormStep>();
@@ -30,9 +29,11 @@ public class AccountOpeningProcess() //: BaseTest(output, redirectSystemConsoleO
         var displayAssistantMessageStep = process.AddStepFromType<DisplayAssistantMessageStep>();
 
         var accountVerificationStep = process.AddStepFromProcess(NewAccountVerificationProcess.CreateProcess());
-        //var accountCreationStep = process.AddStepFromProcess(NewAccountCreationProcess.CreateProcess());
+        var accountCreationStep = process.AddStepFromProcess(NewAccountCreationProcess.CreateProcess());
 
         var mailServiceStep = process.AddStepFromType<MailServiceStep>();
+
+                
 
         process
             .OnInputEvent(AccountOpeningEvents.StartProcess)
@@ -49,9 +50,9 @@ public class AccountOpeningProcess() //: BaseTest(output, redirectSystemConsoleO
             .OnEvent(CommonEvents.UserInputReceived)
             .SendEventTo(new ProcessFunctionTargetBuilder(newCustomerFormStep, CompleteNewCustomerFormStep.Functions.NewAccountProcessUserInfo, "userMessage"));
 
-        userInputStep
-            .OnEvent(CommonEvents.Exit)
-            .StopProcess();
+        //userInputStep
+        //    .OnEvent(CommonEvents.Exit)
+        //    .StopProcess();
 
         // When the newCustomerForm step emits needs more details, send message to displayAssistantMessage step
         newCustomerFormStep
@@ -129,7 +130,7 @@ public class AccountOpeningProcess() //: BaseTest(output, redirectSystemConsoleO
     public async Task UseAccountOpeningProcessSuccessfulInteractionAsync()
     {
         Kernel kernel = CreateKernelWithChatCompletion();
-        KernelProcess kernelProcess = SetupAccountOpeningProcess<UserInputSuccessfulInteractionStep>();
+        KernelProcess kernelProcess = await SetupAccountOpeningProcessAsync<UserInputSuccessfulInteractionStep>();
         using var runningProcess = await kernelProcess.StartAsync(kernel, new KernelProcessEvent() { Id = AccountOpeningEvents.StartProcess, Data = null });
     }
 
@@ -139,7 +140,7 @@ public class AccountOpeningProcess() //: BaseTest(output, redirectSystemConsoleO
     public async Task UseAccountOpeningProcessFailureDueToCreditScoreFailureAsync()
     {
         Kernel kernel = CreateKernelWithChatCompletion();
-        KernelProcess kernelProcess = SetupAccountOpeningProcess<UserInputCreditScoreFailureInteractionStep>();
+        KernelProcess kernelProcess = await SetupAccountOpeningProcessAsync<UserInputCreditScoreFailureInteractionStep>();
         using var runningProcess = await kernelProcess.StartAsync(kernel, new KernelProcessEvent() { Id = AccountOpeningEvents.StartProcess, Data = null });
     }
 
@@ -149,7 +150,72 @@ public class AccountOpeningProcess() //: BaseTest(output, redirectSystemConsoleO
     public async Task UseAccountOpeningProcessFailureDueToFraudFailureAsync()
     {
         Kernel kernel = CreateKernelWithChatCompletion();
-        KernelProcess kernelProcess = SetupAccountOpeningProcess<UserInputFraudFailureInteractionStep>();
+        KernelProcess kernelProcess = await SetupAccountOpeningProcessAsync<UserInputFraudFailureInteractionStep>();
         using var runningProcess = await kernelProcess.StartAsync(kernel, new KernelProcessEvent() { Id = AccountOpeningEvents.StartProcess, Data = null });
     }
+
+    /// <summary>
+    /// Demonstrate creation of <see cref="KernelProcess"/> and
+    /// eliciting its response to five explicit user messages.<br/>
+    /// For each test there is a different set of user messages that will cause different steps to be triggered using the same pipeline.<br/>
+    /// For visual reference of the process check the <see href="https://github.com/microsoft/semantic-kernel/tree/main/dotnet/samples/GettingStartedWithProcesses/README.md#step02b_accountOpening" >diagram</see>.
+    /// </summary>
+    public static class NewAccountCreationProcess
+    {
+        public static ProcessBuilder CreateProcess()
+        {
+            ProcessBuilder process = new("AccountCreationProcess");
+
+            var coreSystemRecordCreationStep = process.AddStepFromType<NewAccountStep>();
+            var marketingRecordCreationStep = process.AddStepFromType<NewMarketingEntryStep>();
+            var crmRecordStep = process.AddStepFromType<CRMRecordCreationStep>();
+            var welcomePacketStep = process.AddStepFromType<WelcomePacketStep>();
+
+            // When the newCustomerForm is completed...
+            process
+                .OnInputEvent(AccountOpeningEvents.NewCustomerFormCompleted)
+                // The information gets passed to the core system record creation step
+                .SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "customerDetails"));
+
+            // When the newCustomerForm is completed, the user interaction transcript with the user is passed to the core system record creation step
+            process
+                .OnInputEvent(AccountOpeningEvents.CustomerInteractionTranscriptReady)
+                .SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "interactionTranscript"));
+
+            // When the fraudDetectionCheck step passes, the information gets to core system record creation step to kickstart this step
+            process
+                .OnInputEvent(AccountOpeningEvents.NewAccountVerificationCheckPassed)
+                .SendEventTo(new ProcessFunctionTargetBuilder(coreSystemRecordCreationStep, functionName: NewAccountStep.Functions.CreateNewAccount, parameterName: "previousCheckSucceeded"));
+
+            // When the coreSystemRecordCreation step successfully creates a new accountId, it will trigger the creation of a new marketing entry through the marketingRecordCreation step
+            coreSystemRecordCreationStep
+                .OnEvent(AccountOpeningEvents.NewMarketingRecordInfoReady)
+                .SendEventTo(new ProcessFunctionTargetBuilder(marketingRecordCreationStep, functionName: NewMarketingEntryStep.Functions.CreateNewMarketingEntry, parameterName: "userDetails"));
+
+            // When the coreSystemRecordCreation step successfully creates a new accountId, it will trigger the creation of a new CRM entry through the crmRecord step
+            coreSystemRecordCreationStep
+                .OnEvent(AccountOpeningEvents.CRMRecordInfoReady)
+                .SendEventTo(new ProcessFunctionTargetBuilder(crmRecordStep, functionName: CRMRecordCreationStep.Functions.CreateCRMEntry, parameterName: "userInteractionDetails"));
+
+            // ParameterName is necessary when the step has multiple input arguments like welcomePacketStep.CreateWelcomePacketAsync
+            // When the coreSystemRecordCreation step successfully creates a new accountId, it will pass the account information details to the welcomePacket step
+            coreSystemRecordCreationStep
+                .OnEvent(AccountOpeningEvents.NewAccountDetailsReady)
+                .SendEventTo(new ProcessFunctionTargetBuilder(welcomePacketStep, parameterName: "accountDetails"));
+
+            // When the marketingRecordCreation step successfully creates a new marketing entry, it will notify the welcomePacket step it is ready
+            marketingRecordCreationStep
+                .OnEvent(AccountOpeningEvents.NewMarketingEntryCreated)
+                .SendEventTo(new ProcessFunctionTargetBuilder(welcomePacketStep, parameterName: "marketingEntryCreated"));
+
+            // When the crmRecord step successfully creates a new CRM entry, it will notify the welcomePacket step it is ready
+            crmRecordStep
+                .OnEvent(AccountOpeningEvents.CRMRecordInfoEntryCreated)
+                .SendEventTo(new ProcessFunctionTargetBuilder(welcomePacketStep, parameterName: "crmRecordCreated"));
+
+            return process;
+        }
+    }
+
+
 }

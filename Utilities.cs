@@ -7,23 +7,42 @@ using System.Runtime.Intrinsics.X86;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using static FxConsole.FxConsole;
-using Microsoft.SemanticKernel.Data;
-using PuppeteerSharp.Input;
-using FxConsole;
-using System.Net;
-using Microsoft.SemanticKernel.Embeddings;
-using Microsoft.SemanticKernel.Connectors.InMemory;
-using Microsoft.Extensions.VectorData;
-using static SKProcess.Utilities;
 
-namespace SKProcess
+
+namespace ProcessVectors
 {
+    #pragma warning disable SKEXP0070 // Chat completion connector is currently experimental.
+    #pragma warning disable SKEXP0001 // AsChatCompletionService
+    #pragma warning disable SKEXP0050 // Microsoft.SemanticKernel.Plugins.Web.WebSearchEnginePlugin
+    #pragma warning disable SKEXP0080 // Microsoft.SemanticKernel.Process.LocalRuntime
+    #pragma warning disable SKEXP0010 // response type
+
     public static class Utilities
     {
         const string jsonDirectory = @"C:\tmp\";
         public static List<string> Hashses { get; set; }
 
+        public async static Task StartOllamaChatKernelProcessAsync(string modelName, Uri modelEndpoint, KernelProcess kernelProcess, object? eventPayload = null)
+        {
+            HttpClient httpClient5minTimeout = new HttpClient()
+            {
+                Timeout = TimeSpan.FromMinutes(5),
+                BaseAddress = modelEndpoint
+            };
+
+            IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
+            kernelBuilder.AddOllamaChatCompletion(modelName, httpClient5minTimeout);
+
+            Kernel kernel = kernelBuilder.Build();
+
+            using var runningProcessAcc = await kernelProcess.StartAsync(
+                kernel,
+                new KernelProcessEvent()
+                {
+                    Id = ProcessEvents.StartProcess,
+                    Data = eventPayload
+                });
+        }
 
         //TODO: finish this
         public static async Task<bool> ExsistAsync(string fileNameB4hashing, string jsonDirectory)

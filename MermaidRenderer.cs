@@ -3,10 +3,12 @@
 using System.Reflection;
 using PuppeteerSharp;
 
-namespace Utilities;
+
+namespace Renderers;
 
 /// <summary>
-/// Renders Mermaid diagrams to images using Puppeteer-Sharp.
+/// Renders 
+/// diagrams to images using Puppeteer-Sharp.
 /// </summary>
 public static class MermaidRenderer
 {

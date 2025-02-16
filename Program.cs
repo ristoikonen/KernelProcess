@@ -30,14 +30,22 @@ class FxConsole
                 await basicFxVectors.CreateKernelAsync();
                 break;
             case "New Account":
-                SpectreConsoleOutput.DisplayTitleH3($"Simulate account opening process by gathering cust data, same process steps as above, additionally; when done, create new account, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
+
                 // tester();
-                
-                AccountOpening accountOpening = new();
-                await accountOpening.SetupAccountOpeningProcessAsync<ScriptedUserInputStep>();
+                SpectreConsoleOutput.DisplayTitleH3($"Simulate account opening process by gathering cust data, same process steps as above, additionally; when done, create new account, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
+                Step02b_AccountOpening step02b = new();
+                var kernelProcessAcc = await step02b.SetupAccountOpeningProcessAsync<ChatUserAccountInputStep>();  //ScriptedUserInputStep
+
+                await Utilities.StartOllamaChatKernelProcessAsync(
+                    starts.ModelName, starts.ModelEndpoint, kernelProcessAcc, "Nutrition Assistant for Customers");
+
+                //AccountOpening accountOpening = new();
+                //await accountOpening.SetupAccountOpeningProcessAsync<ScriptedUserInputStep>();
                 
                 break;
+
             case "CreateStore":
+                
                 SpectreConsoleOutput.DisplayTitleH3($"Create Vector Store, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
                 CreateVectorStore createVectorStore = new();
                 await createVectorStore.CreateStoreAsync(starts);
@@ -72,7 +80,7 @@ class FxConsole
         cha.CreateBaseHash();
         string hs = cha.BaseHash;
 
-        var matt = SKProcess.Utilities.Matches(hs, c.Email, c.LastName);
+        var matt = Utilities.Matches(hs, c.Email, c.LastName);
 
     }
 
@@ -81,7 +89,7 @@ class FxConsole
     {
         //T obj;// = new T
         //obj.BaseHash = SKProcess.Utilities.GenerateHash(Email, lastName);
-        string hash = SKProcess.Utilities.GenerateHash(Email, lastName);
+        string hash = Utilities.GenerateHash(Email, lastName);
         return hash; 
         //IBaseIndexer
         //BaseHash = hash;
