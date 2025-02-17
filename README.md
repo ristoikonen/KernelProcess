@@ -41,3 +41,4 @@ I belive it or similar, will be useful as a bridge between AI and business proce
             await context.EmitEventAsync(new() { Id = AccountOpeningEvents.CustomerInteractionTranscriptReady, Data = _state?.conversation, Visibility = KernelProcessEventVisibility.Public });
             return;
         }
+

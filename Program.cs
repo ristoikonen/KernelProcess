@@ -1,6 +1,7 @@
 ﻿
 
 using Microsoft.Extensions.AI;
+using Microsoft.SemanticKernel;
 using ProcessVectors;
 using SKProcess;
 using System;
@@ -29,22 +30,31 @@ class FxConsole
                 ProcessVectors.ProcessVectors basicFxVectors = new(starts.ModelEndpoint, starts.ModelName);
                 await basicFxVectors.CreateKernelAsync();
                 break;
-            case "New Account":
 
-                // tester();
+            case "New Account":
                 SpectreConsoleOutput.DisplayTitleH3($"Simulate account opening process by gathering cust data, same process steps as above, additionally; when done, create new account, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
                 Step02b_AccountOpening step02b = new();
-                var kernelProcessAcc = await step02b.SetupAccountOpeningProcessAsync<ChatUserAccountInputStep>();  //ScriptedUserInputStep
-
-                await Utilities.StartOllamaChatKernelProcessAsync(
-                    starts.ModelName, starts.ModelEndpoint, kernelProcessAcc, "Nutrition Assistant for Customers");
-
-                //AccountOpening accountOpening = new();
-                //await accountOpening.SetupAccountOpeningProcessAsync<ScriptedUserInputStep>();
+                var kernelProcess_AccOpen = await step02b.SetupAccountOpeningProcessAsync<ChatUserAccountInputStep>();
                 
+                await Utilities.StartOllamaChatKernelProcessAsync(
+                    starts.ModelName, starts.ModelEndpoint, kernelProcess_AccOpen, "Nutrition Assistant for Customers");
+
+                break;
+            case "Open an Account":
+                SpectreConsoleOutput.DisplayTitleH3($"NOT READY YET.., using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
+                // tester();
+                AccountOpening accountOpening = new();
+                await accountOpening.SetupAccountOpeningProcessAsync<ScriptedUserInputStep>();
                 break;
 
-            case "CreateStore":
+            case "Write Email":
+
+                SpectreConsoleOutput.DisplayTitleH3($"Write email, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
+                await MultipleProviders_ChatCompletion.LocalModel_ExampleAsync(starts.ModelEndpoint, starts.ModelName);
+
+                break;
+
+            case "Create Store":
                 
                 SpectreConsoleOutput.DisplayTitleH3($"Create Vector Store, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
                 CreateVectorStore createVectorStore = new();

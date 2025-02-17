@@ -23,11 +23,14 @@ namespace FxConsole
                         "[green]<enter>[/] to accept)[/]")
                     .AddChoices(new[] {
                     "Gather customer data for nutrition data",
-                    "New Account"
+                    "New Account",
+                    "Open an Account",
+                    "Write Email",
+                    "Create Store"
                         })
-                    .AddChoiceGroup("Open an Account", new[]
-                        { "CreateStore"
-                        })
+                    //.AddChoiceGroup("Open an Account", new[]
+                    //    { "CreateStore"
+                    //    })
                     );
             return scenarios;
         }

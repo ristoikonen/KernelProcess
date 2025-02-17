@@ -1,4 +1,5 @@
 ﻿using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using SKProcess.Steps;
 
 
@@ -27,10 +28,8 @@ public class Step02b_AccountOpening() //: BaseTest(output, redirectSystemConsole
         var newCustomerFormStep = process.AddStepFromType<CompleteNewCustomerFormStep>();
         var userInputStep = process.AddStepFromType<TUserInputStep>();
         var displayAssistantMessageStep = process.AddStepFromType<DisplayAssistantMessageStep>();
-
         var accountVerificationStep = process.AddStepFromProcess(NewAccountVerificationProcess.CreateProcess());
         var accountCreationStep = process.AddStepFromProcess(NewAccountCreationProcess.CreateProcess());
-
         var mailServiceStep = process.AddStepFromType<MailServiceStep>();
 
                 
@@ -63,7 +62,7 @@ public class Step02b_AccountOpening() //: BaseTest(output, redirectSystemConsole
         displayAssistantMessageStep
             .OnEvent(CommonEvents.AssistantResponseGenerated)
             .SendEventTo(new ProcessFunctionTargetBuilder(userInputStep, ScriptedUserInputStep.Functions.GetUserInput));
-/*
+
         // When the newCustomerForm is completed...
         newCustomerFormStep
             .OnEvent(AccountOpeningEvents.NewCustomerFormCompleted)
@@ -81,7 +80,7 @@ public class Step02b_AccountOpening() //: BaseTest(output, redirectSystemConsole
         accountVerificationStep
             .OnEvent(AccountOpeningEvents.CreditScoreCheckRejected)
             .SendEventTo(new ProcessFunctionTargetBuilder(mailServiceStep));
-
+        
         // When the fraudDetectionCheck step fails, the information gets to the mailService step to notify the user about the state of the application and the reasons
         accountVerificationStep
             .OnEvent(AccountOpeningEvents.FraudDetectionCheckFailed)
@@ -101,25 +100,29 @@ public class Step02b_AccountOpening() //: BaseTest(output, redirectSystemConsole
         mailServiceStep
             .OnEvent(AccountOpeningEvents.MailServiceSent)
             .StopProcess();
-*/
+        /**/
+
         KernelProcess kernelProcess = process.Build();
+        
+        // generate Mermaid process graph image
+        //var mernmaidcode = kernelProcess.ToMermaid();
+        //string? generatedImagePath = await Renderers.MermaidRenderer.GenerateMermaidImageAsync(mernmaidcode, "AccountOpeningProcessStep2b.png");
+        //Console.WriteLine("Generated Mermaid process image. Path: { generatedImagePath}");
 
         return kernelProcess;
     }
 
     protected Kernel CreateKernelWithChatCompletion()
     {
-
-
-        // PROCESS = > WE USE LONG TIMEOUT FOR THE MODEL!
-        HttpClient httpClient2minTimeout = new HttpClient()
+        // Use LOOONG timeout!
+        HttpClient httpClient5minTimeout = new HttpClient()
         {
             Timeout = TimeSpan.FromMinutes(5),
             BaseAddress = new Uri("http://localhost:11434")
         };
 
         IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
-        kernelBuilder.AddOllamaChatCompletion("llama3.2", httpClient2minTimeout);
+        kernelBuilder.AddOllamaChatCompletion("llama3.2", httpClient5minTimeout);
 
         return kernelBuilder.Build();
     }

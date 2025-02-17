@@ -1,4 +1,5 @@
 ﻿using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using SKProcess.Steps;
 
 namespace ProcessVectors;
@@ -131,7 +132,9 @@ namespace ProcessVectors;
                         .StopProcess();
         */
             KernelProcess kernelProcess = process.Build();
+            
             //string generatedImagePath = await Renderers.MermaidRenderer.GenerateMermaidImageAsync(kernelProcess.ToMermaid(), "AccountOpeningProcess.png");
+            //Console.WriteLine($"Generated Mermaid process image. Path: { generatedImagePath}" );
 
             return kernelProcess;
         }
