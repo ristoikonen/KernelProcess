@@ -10,6 +10,7 @@ using System.Text.Json;
 using Microsoft.SemanticKernel.Connectors.Ollama;
 using Microsoft.Extensions.DependencyInjection;
 using SKProcess.Plugins;
+using System.ComponentModel;
 
 
 namespace ProcessVectors
@@ -19,83 +20,6 @@ namespace ProcessVectors
 #pragma warning disable SKEXP0050 // Microsoft.SemanticKernel.Plugins.Web.WebSearchEnginePlugin
 #pragma warning disable SKEXP0080 // Microsoft.SemanticKernel.Process.LocalRuntime
 #pragma warning disable SKEXP0010 // response type
-
-    /// <summary>
-    /// Search Plugin to be called from prompt for demonstration purposes.
-    /// </summary>
-    public class CustomersPlugin
-    {
-        [KernelFunction]
-        public List<NewCustomerForm> GetCustomers() => new()
-            {
-                new () { UserFirstName = "John", UserLastName = "Steward" },
-                new () { UserFirstName = "Alice", UserLastName = "Namer" },
-                new () { UserFirstName = "Emily", UserLastName = "Hayes" }
-            };
-    }
-
-    public static class MultipleProviders_ChatCompletion //(ITestOutputHelper output) : BaseTest(output)
-    {
-        public static async Task LocalModel_ExampleAsync(Uri url, string modelId)
-        {
-
-
-            var kernelbuilder = Kernel.CreateBuilder()
-
-                .AddOllamaChatCompletion(
-                    modelId: modelId,
-                    endpoint: url);
-
-            kernelbuilder.Plugins.AddFromType<CustomersPlugin>();
-
-            var kernel = kernelbuilder.Build();
-
-
-            NewCustomerForm customer = new NewCustomerForm() { UserFirstName = "Susan", UserLastName = "Frost" };
-
-            var prompt = @"Rewrite the text between triple backticks into a welcoming new customer email. Embed customer data like 'Congratulations Mary', if data is available. Use a professional tone, be clear and concise.
-                   Sign the mail as RIAI Assistant.
-
-                   Text: ```{{$input}}```";
-
-            var mailFunction = kernel.CreateFunctionFromPrompt(prompt, new OpenAIPromptExecutionSettings
-            {
-                TopP = 0.5,
-                MaxTokens = 1000,
-            });
-
-            var response = await kernel.InvokeAsync(mailFunction, new() { ["input"] = "Congratulations {{#each (SearchPlugin-GetCustomers)}} {{customer.UserFirstName}} {{customer.UserLastName}} {{/each}} on your new personally assisted credit account. I'm going to send you furher information by the end of the week." });
-            Console.WriteLine(response);
-        }
-
-        public static async Task LocalModel_StreamingExampleAsync(string messageAPIPlatform, string url, string modelId)
-        {
-            Console.WriteLine($"Example using local {messageAPIPlatform}");
-
-            var kernel = Kernel.CreateBuilder()
-                .AddOllamaChatCompletion(
-                    modelId: modelId,
-                    endpoint: new Uri(url))
-                .Build();
-
-            var prompt = @"Rewrite the text between triple backticks into a business mail. Embed NewCustomerForm fields if avilable. Use a professional tone, be clear and concise.
-                   Sign the mail as RIAI Assistant.
-
-                   Text: ```{{$input}}```";
-
-            var mailFunction = kernel.CreateFunctionFromPrompt(prompt, new OpenAIPromptExecutionSettings
-            {
-                TopP = 0.5f,
-                MaxTokens = 1000,
-            });
-
-            await foreach (var word in kernel.InvokeStreamingAsync(mailFunction, new() { ["input"] = "Tell David that I'm going to finish the business plan by the end of the week." }))
-            {
-                Console.WriteLine(word);
-            }
-        }
-    }
-
 
     public static class Utilities
     {
