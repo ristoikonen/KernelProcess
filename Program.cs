@@ -48,7 +48,7 @@ class FxConsole
                 break;
 
             case "Write Email":
-                SpectreConsoleOutput.DisplayTitleH3($"Uses functions to write emails per List<>, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
+                SpectreConsoleOutput.DisplayTitleH3($"Uses functions to write emails per List of Customer, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
                 SpectreConsoleOutput.DisplayTitleH3($"Write email, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
                 await EmailPerCustomer.LocalModel_ExampleAsync(starts.ModelEndpoint, starts.ModelName);
 
