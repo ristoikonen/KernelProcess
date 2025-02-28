@@ -5,6 +5,7 @@ using Microsoft.SemanticKernel.Data;
 using Microsoft.SemanticKernel.Embeddings;
 using Microsoft.SemanticKernel;
 using ProcessVectors;
+using Google.Apis.CustomSearchAPI.v1.Data;
 
 
 namespace SKProcess
@@ -55,6 +56,116 @@ namespace SKProcess
             return collection;
         }
 
+
+
+
+        // Create and use InMemory vector store
+        public async Task CreateVectorStoreAsync(StartMeUps startMeUps)
+        {
+            Kernel kernel = Kernel.CreateBuilder()
+                .AddOllamaTextEmbeddingGeneration(
+                    endpoint: startMeUps.ModelEndpoint,
+                    modelId: startMeUps.ModelName)
+                .Build();
+
+            var embeddingGenerator = kernel.GetRequiredService<ITextEmbeddingGenerationService>();
+
+            //var embeddings =
+            //    await embeddingGenerator.GenerateEmbeddingsAsync(
+            //    [
+            //        //"I like apples.",
+            //        //"I like oranges."
+
+            //        "My Name is Gary Nett\nI live in Canberra! Gary Nett lives in ACT, Canberra.\n Customer since 2020.\n I am good milk driker but I do not like apples.",
+            //        "My Name is Mary Hamilton, I am from Sydney.\n I do not like to eat apples but do like olives",
+            //        "My Name is Susan Franck, I am from Sydney.\n I do not like to eat apples but do like eggs",
+            //        "My Name is Deliah Aaron, I am from ACT.\n I like apples and olives."
+            //    ]);
+
+            //// https://github.com/microsoft/semantic-kernel/discussions/8622
+
+            //Console.WriteLine($"Generated {embeddings.Count} embeddings for the provided text");
+
+            // Construct an InMemory vector store.
+            var vectorStore = new InMemoryVectorStore();
+            var collectionName = "customers";
+
+            // Get and create collection if it doesn't exist.
+            var recordCollection = vectorStore.GetCollection<string, NewCustomerForm>(collectionName);
+            await recordCollection.CreateCollectionIfNotExistsAsync().ConfigureAwait(false);
+
+
+            // TODO populate the record collection with your test data
+            // Example https://github.com/microsoft/semantic-kernel/blob/main/dotnet/samples/Concepts/Search/VectorStore_TextSearch.cs
+
+            // Delegate which will create a record.
+            static NewCustomerForm CreateRecord(string text, ReadOnlyMemory<float> embedding)
+            {
+                return new()
+                {
+                    
+                    Key = Guid.NewGuid(),
+                    //UserEmail = email,
+                    //UserEmail = email,
+                    Text = text,
+
+                    Embedding = embedding
+                };
+            }
+
+
+            // Create records and generate embeddings for them.
+            //var tasks = entries.Select(entry => Task.Run(async () =>
+            //{
+            //    var record = createRecord(entry, await embeddingGenerationService.GenerateEmbeddingAsync(entry).ConfigureAwait(false));
+            //    await collection.UpsertAsync(record).ConfigureAwait(false);
+            //}));
+            //await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            // Create a record collection from a list of strings using the provided delegate.
+            string[] lines =
+            [
+                "My Name is Gary Nett. I like meat.I like olive oil.", //\nI live in Canberra! Gary Nett lives in ACT, Canberra.\n Customer since 2020.\n I am good milk driker but I do not like apples.",
+                "My Name is Mary Hamilton. i like apples.", //, I am from Sydney.\n I like to eat apples but do not like olive oil",
+                "My Name is Susan Franck. i like milk." //, I am from Sydney.\n I like to eat apples but do not like olive oil"
+            ];
+
+            var vectorizedSearch = await CreateCollectionFromListAsync<Guid, NewCustomerForm>(
+                vectorStore, collectionName, lines, embeddingGenerator, CreateRecord);
+
+
+            // Create a text search instance using the InMemory vector store.
+            var textSearch = new VectorStoreTextSearch<NewCustomerForm>(vectorizedSearch, embeddingGenerator);
+
+            var query = "Who likes milk?";
+
+            // Search and return results as a string items
+            KernelSearchResults<string> stringResults = await textSearch.SearchAsync(query, new() { Top = 1, Skip = 0 });
+            //var ress = await textSearch.SearchAsync(query, new() { Top = 4, Skip = 0 });
+
+            // Search and returns results as DataModel items
+            KernelSearchResults<object> fullResults = await textSearch.GetSearchResultsAsync(query, new() { Top = 2, Skip = 0 });
+            Console.WriteLine("\n--- DataModel Results ---\n");
+            await foreach (NewCustomerForm result in fullResults.Results)
+            {
+                Console.WriteLine($"Key:         {result.Key}");
+                Console.WriteLine($"Text:        {result.Text}");
+                Console.WriteLine($"Embedding:   {result.Embedding.Length}");
+                Console.WriteLine($"{new string('-', 30)}");
+            }
+
+            Console.WriteLine("--- String Results ---\n");
+            await foreach (string result in stringResults.Results)
+            {
+                Console.WriteLine(result);
+                Console.WriteLine($"{new string('-', 30)}");
+            }
+
+        }
+
+
+
+
         // Create and use InMemory vector store
         public async Task CreateStoreAsync(StartMeUps startMeUps)
         {
@@ -81,7 +192,7 @@ namespace SKProcess
                     "My Name is Gary Nett\nI live in Canberra! Gary Nett lives in ACT, Canberra.\n Customer since 2020.\n I am good milk driker but I do not like apples.",
                     "My Name is Mary Hamilton, I am from Sydney.\n I do not like to eat apples but do like olives",
                     "My Name is Susan Franck, I am from Sydney.\n I do not like to eat apples but do like eggs",
-                    "My Name is Deliah Aaron, I am from ACT.\n I like olives"
+                    "My Name is Deliah Aaron, I am from ACT.\n I like apples and olives."
                 ]);
 
             // https://github.com/microsoft/semantic-kernel/discussions/8622
@@ -108,18 +219,20 @@ namespace SKProcess
                 return new()
                 {
                     //Key = "", //Guid.NewGuid(),
-                    Text = text,
                     //UserEmail = email,
+                    //UserEmail = email,
+                    Text = text,
+                    
                     Embedding = embedding
                 }; 
             }
 
             List<NewCustomerForm> l = new List<NewCustomerForm>() {  
                 
-                new NewCustomerForm() { UserLastName = "Nett",  Text = "I am good milk driker but I do not like apples" },
-                new NewCustomerForm() { UserLastName = "Hamilton",  Text = "I like to eat apples but do not like olive oil" },
-                new NewCustomerForm() { UserLastName = "Franck",  Text = "I eat onions" },
-                new NewCustomerForm() { UserLastName = "Aaron",  Text = "i like milk" }
+                new NewCustomerForm() { UserEmail = "Nett@gmx.com",   Text = "I am good milk driker but I do not like apples" },
+                new NewCustomerForm() { UserEmail = "Hamilton@gmx.com",  Text = "I like to eat apples but do not like olive oil" },
+                new NewCustomerForm() { UserEmail = "Franck@gmx.com",  Text = "I eat onions" },
+                new NewCustomerForm() { UserEmail = "Aaron@gmx.com",  Text = " i like milk" }
 
             };
             
@@ -134,8 +247,9 @@ namespace SKProcess
             // Create a record collection from a list of strings using the provided delegate.
             string[] lines =
             [
-                "My Name is Gary Nett.\", //\nI live in Canberra! Gary Nett lives in ACT, Canberra.\n Customer since 2020.\n I am good milk driker but I do not like apples.",
-                "My Name is Mary Hamilton." //, I am from Sydney.\n I like to eat apples but do not like olive oil"
+                "My Name is Gary Nett. I like olives.\", //\nI live in Canberra! Gary Nett lives in ACT, Canberra.\n Customer since 2020.\n I am good milk driker but I do not like apples.",
+                "My Name is Mary Hamilton. i like milk.", //, I am from Sydney.\n I like to eat apples but do not like olive oil",
+                "My Name is Susan Franck. i like olives." //, I am from Sydney.\n I like to eat apples but do not like olive oil"
             ];
 
             var vectorizedSearch = await CreateCollectionFromListAsync<string, NewCustomerForm>(
@@ -149,7 +263,8 @@ namespace SKProcess
             
             // tester ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-/*
+            /*
+             * 
             var embeddings2 =
                 await embeddingGenerator.GenerateEmbeddingsAsync(
                 [
@@ -227,7 +342,8 @@ namespace SKProcess
             //}
           
 
-*/
+            */
+
 
             // eo tester ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -235,7 +351,7 @@ namespace SKProcess
             // Create a text search instance using the InMemory vector store.
             //var textSearch = new VectorStoreTextSearch<DataModel>(recordCollection, textEmbeddingGeneration);
             //var textSearch = new VectorStoreTextSearch<NewCustomerForm>(recordCollection, textEmbeddingGeneration);
-
+/*
             // Search and return results as TextSearchResult items
             var query = "List customers who like apples";
             
@@ -248,7 +364,7 @@ namespace SKProcess
                 Console.WriteLine($"Value: {result.Value}");
                 Console.WriteLine($"Link:  {result.Link}");
             }
-
+*/
         }
 
         public class MyDataModel
@@ -267,6 +383,10 @@ namespace SKProcess
 
             // Search and return results as a string items
             KernelSearchResults<string> stringResults = await textSearch.SearchAsync(query, new() { Top = 4, Skip = 0 });
+            //var res = await textSearch.GetSearchResultsAsync(query, new() { Top = 4, Skip = 0 });
+            //var re = res.Results;
+            //var resulkt = textSearch.SearchAsync(query, new() { Top = 4, Skip = 0 }).Result;
+
             Console.WriteLine("--- String Results ---\n");
             await foreach (string result in stringResults.Results)
             {
@@ -275,8 +395,9 @@ namespace SKProcess
             }
 
             // Search and return results as TextSearchResult items
-            KernelSearchResults<TextSearchResult> textResults = await textSearch.GetTextSearchResultsAsync(query, new() { Top = 2, Skip = 0 });
+            KernelSearchResults<TextSearchResult> textResults = await textSearch.GetTextSearchResultsAsync(query, new() { Top = 4, Skip = 0 });
             Console.WriteLine("\n--- Text Search Results ---\n");
+            Console.WriteLine(textResults.TotalCount); 
             await foreach (TextSearchResult result in textResults.Results)
             {
                 Console.WriteLine($"Name:  {result.Name}");
@@ -286,7 +407,7 @@ namespace SKProcess
             }
 
             // Search and returns results as DataModel items
-            KernelSearchResults<object> fullResults = await textSearch.GetSearchResultsAsync(query, new() { Top = 2, Skip = 0 });
+            KernelSearchResults<object> fullResults = await textSearch.GetSearchResultsAsync(query, new() { Top = 4, Skip = 0 });
             Console.WriteLine("\n--- DataModel Results ---\n");
             await foreach (NewCustomerForm result in fullResults.Results)
             {

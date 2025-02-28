@@ -49,16 +49,25 @@ class FxConsole
 
             case "Write Email":
                 SpectreConsoleOutput.DisplayTitleH3($"Uses functions to write emails per List of Customer, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
-                SpectreConsoleOutput.DisplayTitleH3($"Write email, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
                 await EmailPerCustomer.LocalModel_ExampleAsync(starts.ModelEndpoint, starts.ModelName);
 
                 break;
+            // TODO: simplify process
+            /*
+            case "Account Info":
+                SpectreConsoleOutput.DisplayTitleH3($"Simulate account opening process by gathering cust data, same process steps as above, additionally; when done, create new account, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
+                Step02b_AccountOpening step02b = new();
+                var kernelProcess_AccOpen = await step02b.SetupAccountOpeningProcessAsync<ChatUserAccountInputStep>();
+                await Utilities.StartOllamaChatKernelProcessAsync(
+                    starts.ModelName, starts.ModelEndpoint, kernelProcess_AccOpen, "Nutrition Assistant for Customers");
 
+                break;
+            */
             case "Create Store":
                 
                 SpectreConsoleOutput.DisplayTitleH3($"Create Vector Store, using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
                 CreateVectorStore createVectorStore = new();
-                await createVectorStore.CreateStoreAsync(starts);
+                await createVectorStore.CreateVectorStoreAsync(starts);
 
                 break;
 
