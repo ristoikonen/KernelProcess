@@ -57,8 +57,6 @@ namespace SKProcess
         }
 
 
-
-
         // Create and use InMemory vector store
         public async Task CreateVectorStoreAsync(StartMeUps startMeUps)
         {
@@ -75,15 +73,12 @@ namespace SKProcess
             //    [
             //        //"I like apples.",
             //        //"I like oranges."
-
             //        "My Name is Gary Nett\nI live in Canberra! Gary Nett lives in ACT, Canberra.\n Customer since 2020.\n I am good milk driker but I do not like apples.",
             //        "My Name is Mary Hamilton, I am from Sydney.\n I do not like to eat apples but do like olives",
             //        "My Name is Susan Franck, I am from Sydney.\n I do not like to eat apples but do like eggs",
             //        "My Name is Deliah Aaron, I am from ACT.\n I like apples and olives."
             //    ]);
-
             //// https://github.com/microsoft/semantic-kernel/discussions/8622
-
             //Console.WriteLine($"Generated {embeddings.Count} embeddings for the provided text");
 
             // Construct an InMemory vector store.
@@ -94,7 +89,6 @@ namespace SKProcess
             var recordCollection = vectorStore.GetCollection<string, NewCustomerForm>(collectionName);
             await recordCollection.CreateCollectionIfNotExistsAsync().ConfigureAwait(false);
 
-
             // TODO populate the record collection with your test data
             // Example https://github.com/microsoft/semantic-kernel/blob/main/dotnet/samples/Concepts/Search/VectorStore_TextSearch.cs
 
@@ -103,16 +97,12 @@ namespace SKProcess
             {
                 return new()
                 {
-                    
                     Key = Guid.NewGuid(),
                     //UserEmail = email,
-                    //UserEmail = email,
                     Text = text,
-
                     Embedding = embedding
                 };
             }
-
 
             // Create records and generate embeddings for them.
             //var tasks = entries.Select(entry => Task.Run(async () =>
@@ -132,7 +122,6 @@ namespace SKProcess
 
             var vectorizedSearch = await CreateCollectionFromListAsync<Guid, NewCustomerForm>(
                 vectorStore, collectionName, lines, embeddingGenerator, CreateRecord);
-
 
             // Create a text search instance using the InMemory vector store.
             var textSearch = new VectorStoreTextSearch<NewCustomerForm>(vectorizedSearch, embeddingGenerator);
@@ -160,10 +149,7 @@ namespace SKProcess
                 Console.WriteLine(result);
                 Console.WriteLine($"{new string('-', 30)}");
             }
-
         }
-
-
 
 
         // Create and use InMemory vector store

@@ -42,9 +42,11 @@ class FxConsole
                 break;
             case "Open an Account":
                 SpectreConsoleOutput.DisplayTitleH3($"NOT READY YET.., using model {starts.ModelName} with endpoint {starts.ModelEndpoint}");
+                                    // ProvideFunctionReturnTypeDescriptionInFunctionDescriptionAsync
+                await DescReturntype.ProvideFunctionReturnTypeSchemaAsPartOfFunctionReturnValueAsync(starts);
                 // tester();
-                AccountOpening accountOpening = new();
-                await accountOpening.SetupAccountOpeningProcessAsync<ScriptedUserInputStep>();
+                //AccountOpening accountOpening = new();
+                //await accountOpening.SetupAccountOpeningProcessAsync<ScriptedUserInputStep>();
                 break;
 
             case "Write Email":
